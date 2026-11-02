@@ -145,7 +145,7 @@ export default function Home() {
       setSessaoAtual(null);
       setSessao(null);
       setErroAuthGoogle(
-        `⛔ Acesso Negado: A conta Google (${emailGoogle}) não tem permissão para acessar o sistema. Apenas as contas autorizadas (rduzzioni@gmail.com e dduzzioni@gmail.com) podem acessar.`
+        `⛔ Acesso Negado: A conta Google (${emailGoogle}) não possui autorização para acessar este sistema. Entre em contato com a administração.`
       );
     }
   };
