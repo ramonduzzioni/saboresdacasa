@@ -8,23 +8,34 @@ const STORAGE_KEYS = {
   PEDIDOS: 'sabores_pedidos_v2',
   MOVIMENTACOES: 'sabores_movimentacoes_v2',
   GOOGLE_USER: 'sabores_google_user_v1',
-  USUARIOS_AUTORIZADOS: 'sabores_usuarios_autorizados_v1',
-  AUTH_SESSION: 'sabores_auth_session_v1',
+  USUARIOS_AUTORIZADOS: 'sabores_usuarios_autorizados_v3',
+  AUTH_SESSION: 'sabores_auth_session_v3',
+  SECURITY_PIN: 'sabores_security_pin_v1',
 };
+
+export const DEFAULT_PIN = '2026';
+
+export function getSecurityPin(): string {
+  return getLocal<string>(STORAGE_KEYS.SECURITY_PIN, DEFAULT_PIN);
+}
+
+export function saveSecurityPin(pin: string): void {
+  setLocal(STORAGE_KEYS.SECURITY_PIN, pin);
+}
 
 export const USUARIOS_INICIAIS: UsuarioPermitido[] = [
   {
     id: 'user-admin-1',
-    email: 'ramonduzzioni@gmail.com',
-    nome: 'Ramon Duzzioni (Proprietário)',
+    email: 'rduzzioni@gmail.com',
+    nome: 'Ramon Duzzioni',
     papel: 'admin',
     ativo: true,
     adicionadoEm: '2026-11-01T00:00:00.000Z',
   },
   {
     id: 'user-admin-2',
-    email: 'saboresdacasa.sp@gmail.com',
-    nome: 'Sabores da Casa (Admin)',
+    email: 'dduzzioni@gmail.com',
+    nome: 'D. Duzzioni',
     papel: 'admin',
     ativo: true,
     adicionadoEm: '2026-11-01T00:00:00.000Z',

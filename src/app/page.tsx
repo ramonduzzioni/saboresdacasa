@@ -31,7 +31,7 @@ import {
   setSessaoAtual,
 } from '@/lib/storage';
 
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import {
   syncProdutosFromSupabase,
   saveProdutoToSupabase,
@@ -87,6 +87,7 @@ export default function Home() {
   const [sessao, setSessao] = useState<SessaoUsuario | null>(null);
   const [usuariosAutorizados, setUsuariosAutorizados] = useState<UsuarioPermitido[]>([]);
   const [carregouAuth, setCarregouAuth] = useState(false);
+  const [erroAuthGoogle, setErroAuthGoogle] = useState<string | null>(null);
 
   // Estado Global do Sistema
   const [config, setConfig] = useState<ConfiguracaoLoja>(CONFIG_INICIAL);
@@ -108,6 +109,40 @@ export default function Home() {
   // Busca e Filtros de Pedidos
   const [buscaPedido, setBuscaPedido] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
+
+  // Validador de sessão estrita Supabase OAuth
+  const processarSessaoOAuthSupabase = async (supabaseSession: any) => {
+    if (!supabaseSession?.user?.email) return;
+    const emailGoogle = supabaseSession.user.email.toLowerCase().trim();
+    const listaAtual = getUsuariosAutorizados();
+    const usuarioAutorizado = listaAtual.find(
+      (u) => u.email.toLowerCase().trim() === emailGoogle && u.ativo
+    );
+
+    if (usuarioAutorizado) {
+      const novaSessao: SessaoUsuario = {
+        email: usuarioAutorizado.email,
+        nome: usuarioAutorizado.nome || supabaseSession.user.user_metadata?.full_name || 'Usuário Google',
+        avatarUrl:
+          supabaseSession.user.user_metadata?.avatar_url ||
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+        papel: usuarioAutorizado.papel,
+      };
+      setSessaoAtual(novaSessao);
+      setSessao(novaSessao);
+      setErroAuthGoogle(null);
+    } else {
+      console.warn(`Tentativa de acesso não autorizada: ${emailGoogle}`);
+      if (isSupabaseConfigured && supabase) {
+        await supabase.auth.signOut();
+      }
+      setSessaoAtual(null);
+      setSessao(null);
+      setErroAuthGoogle(
+        `⛔ Acesso Negado: A conta Google (${emailGoogle}) não tem permissão para acessar o sistema. Apenas as contas autorizadas (rduzzioni@gmail.com e dduzzioni@gmail.com) podem acessar.`
+      );
+    }
+  };
 
   // Carrega e sincroniza dados do LocalStorage e Supabase
   const carregarDados = () => {
@@ -132,6 +167,26 @@ export default function Home() {
     carregarDados();
     const handleUpdate = () => carregarDados();
     window.addEventListener('sabores-data-updated', handleUpdate);
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          processarSessaoOAuthSupabase(session);
+        }
+      });
+
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+          processarSessaoOAuthSupabase(session);
+        }
+      });
+
+      return () => {
+        window.removeEventListener('sabores-data-updated', handleUpdate);
+        authListener?.subscription.unsubscribe();
+      };
+    }
+
     return () => window.removeEventListener('sabores-data-updated', handleUpdate);
   }, []);
 
@@ -139,12 +194,21 @@ export default function Home() {
   const handleLoginSuccess = (novaSessao: SessaoUsuario) => {
     setSessaoAtual(novaSessao);
     setSessao(novaSessao);
+    setErroAuthGoogle(null);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm('Deseja realmente sair da sua conta?')) {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase.auth.signOut();
+        } catch (e) {
+          console.error(e);
+        }
+      }
       setSessaoAtual(null);
       setSessao(null);
+      setErroAuthGoogle(null);
     }
   };
 
@@ -212,6 +276,7 @@ export default function Home() {
       <LoginScreen
         usuariosAutorizados={usuariosAutorizados}
         onLoginSuccess={handleLoginSuccess}
+        erroExterno={erroAuthGoogle}
       />
     );
   }
