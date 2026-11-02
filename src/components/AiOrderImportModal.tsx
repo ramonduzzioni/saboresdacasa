@@ -31,13 +31,14 @@ export function AiOrderImportModal({
     tipoEntrega: 'entrega' | 'retirada';
     observacoes: string;
     foiGemini: boolean;
+    isQuinzenal: boolean;
   } | null>(null);
 
   if (!isOpen) return null;
 
   const handleExemploParque = () => {
     setTextoWhats(
-      `Bom dia Sabores da Casa! Aqui é do Parque Temático.\n` +
+      `Bom dia Sabores da Casa! Aqui é do Parque Temático Toca do Urso.\n` +
       `Para este sábado às 16h precisamos de:\n` +
       `- 150 coxinhas tradicionais\n` +
       `- 120 bolinhas de queijo\n` +
@@ -98,6 +99,11 @@ export function AiOrderImportModal({
         }
       }
 
+      const isQuinzenal =
+        cliente?.tipoCobranca === 'quinzenal' ||
+        cliente?.nome.toLowerCase().includes('urso') ||
+        geminiResult.tipoCobranca === 'quinzenal';
+
       setResultado({
         clienteDetectado: cliente,
         itensDetectados: itens.length > 0 ? itens : fallbackItens(cliente),
@@ -105,6 +111,7 @@ export function AiOrderImportModal({
         tipoEntrega: geminiResult.tipoEntrega || 'entrega',
         observacoes: geminiResult.observacoes || 'Pedido estruturado com sucesso pelo Gemini.',
         foiGemini: true,
+        isQuinzenal,
       });
     } catch (err) {
       console.warn('Falha no Gemini, usando motor local inteligente:', err);
@@ -186,6 +193,11 @@ export function AiOrderImportModal({
       }
     });
 
+    const isQuinzenal =
+      clienteDetectado?.tipoCobranca === 'quinzenal' ||
+      clienteDetectado?.nome.toLowerCase().includes('urso') ||
+      textoLower.includes('urso');
+
     setResultado({
       clienteDetectado,
       itensDetectados: itensDetectados.length > 0 ? itensDetectados : fallbackItens(clienteDetectado),
@@ -193,15 +205,17 @@ export function AiOrderImportModal({
       tipoEntrega: textoLower.includes('retirar') || textoLower.includes('balcão') ? 'retirada' : 'entrega',
       observacoes: 'Pedido extraído do WhatsApp',
       foiGemini: false,
+      isQuinzenal,
     });
   };
 
   const handleConfirmarPedido = () => {
     if (!resultado || !resultado.clienteDetectado) return;
 
+    const isQuinzenal = resultado.isQuinzenal;
     const valorTotal = resultado.itensDetectados.reduce((acc, i) => acc + i.subtotal, 0);
-    const valorSinal = Number((valorTotal * 0.5).toFixed(2));
-    const valorRestante = Number((valorTotal - valorSinal).toFixed(2));
+    const valorSinal = isQuinzenal ? 0 : Number((valorTotal * 0.5).toFixed(2));
+    const valorRestante = isQuinzenal ? valorTotal : Number((valorTotal - valorSinal).toFixed(2));
 
     const novoPedido: Pedido = {
       id: `ped-${Date.now()}`,
@@ -213,6 +227,7 @@ export function AiOrderImportModal({
       googleMapsUrl: resultado.clienteDetectado.googleMapsUrl,
       dataHoraEntrega: resultado.dataDetectada || new Date().toISOString(),
       tipoEntrega: resultado.tipoEntrega,
+      tipoCobranca: isQuinzenal ? 'quinzenal' : 'padrao_50',
       itens: resultado.itensDetectados,
       valorTotal,
       valorSinal,
@@ -392,12 +407,19 @@ export function AiOrderImportModal({
                       R$ {resultado.itensDetectados.reduce((a, b) => a + b.subtotal, 0).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-xs text-[#FAF7F2]/80">
-                    <span>Sinal 50% para reserva:</span>
-                    <span className="font-bold">
-                      R$ {(resultado.itensDetectados.reduce((a, b) => a + b.subtotal, 0) * 0.5).toFixed(2)}
-                    </span>
-                  </div>
+                  {resultado.isQuinzenal ? (
+                    <div className="bg-white/10 rounded-lg p-2 text-xs text-[#E6C285] font-bold flex items-center justify-between mt-1">
+                      <span>📅 Pagamento Quinzenal:</span>
+                      <span className="text-white font-black">Sem sinal de 50%</span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center text-xs text-[#FAF7F2]/80">
+                      <span>Sinal 50% para reserva:</span>
+                      <span className="font-bold">
+                        R$ {(resultado.itensDetectados.reduce((a, b) => a + b.subtotal, 0) * 0.5).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -130,7 +130,13 @@ export function TopAgendaWidget({ pedidos, config, onEditQuick, onOpenPdf }: Top
                   <div className="flex items-center justify-between text-xs bg-[#F2EDE4] p-1.5 rounded-lg mb-3">
                     <span className="text-[#6E473B] font-medium">Total: R$ {pedido.valorTotal.toFixed(2)}</span>
                     <span className="text-emerald-700 font-bold">
-                      {pedido.statusPagamento === 'quitado' ? 'Quitado' : `Restam R$ ${pedido.valorRestante.toFixed(2)}`}
+                      {pedido.tipoCobranca === 'quinzenal' || pedido.clienteNome.toLowerCase().includes('urso') || pedido.valorSinal === 0 ? (
+                        <span className="text-amber-900 font-extrabold text-[11px]">📅 Quinzenal</span>
+                      ) : pedido.statusPagamento === 'quitado' ? (
+                        'Quitado'
+                      ) : (
+                        `Restam R$ ${pedido.valorRestante.toFixed(2)}`
+                      )}
                     </span>
                   </div>
                 </div>

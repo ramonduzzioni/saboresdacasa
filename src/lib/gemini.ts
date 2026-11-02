@@ -35,6 +35,7 @@ export interface GeminiParsedOrder {
   clienteEndereco?: string;
   dataHoraEntrega?: string;
   tipoEntrega: 'entrega' | 'retirada';
+  tipoCobranca?: 'padrao_50' | 'quinzenal';
   itens: {
     produtoId: string;
     nomeProduto: string;
@@ -72,12 +73,13 @@ ${textoWhatsApp}
 """
 
 INSTRUÇÕES OBRIGATÓRIAS:
-1. Identifique o cliente: Se mencionar o nome de um cliente cadastrado (ou do Parque Temático, Villa Nobre, etc.), use o ID correspondente. Se for um cliente novo, extraia o nome/telefone se houver.
-2. Mapeie cada item pedido para o produto correspondente do cardápio pelo ID correto.
-3. Extraia as quantidades exatas por unidade.
-4. Extraia data e hora de entrega no formato ISO 8601 (ex: "2026-11-03T18:00:00.000Z"). Se não houver horário, assuma 17:00.
-5. Identifique se é "entrega" ou "retirada" (padrão é entrega).
-6. Extraia observações (ex: "fritar bem quentinho", "portaria lateral", "massa sem cebola").
+1. Identifique o cliente: Se mencionar o nome de um cliente cadastrado (ou Parque Temático, Toca do Urso, Villa Nobre, etc.), use o ID correspondente.
+2. IMPORTANTE SOBRE FORMA DE PAGAMENTO: O cliente principal "Parque Temático Toca do Urso" (ou "A Toca do Urso") paga QUINZENALMENTE (tipoCobranca = "quinzenal"). NUNCA cobre sinal de 50% da Toca do Urso! Para os demais clientes comuns, tipoCobranca = "padrao_50".
+3. Mapeie cada item pedido para o produto correspondente do cardápio pelo ID correto.
+4. Extraia as quantidades exatas por unidade.
+5. Extraia data e hora de entrega no formato ISO 8601 (ex: "2026-11-03T18:00:00.000Z"). Se não houver horário, assuma 17:00.
+6. Identifique se é "entrega" ou "retirada" (padrão é entrega).
+7. Extraia observações (ex: "fritar bem quentinho", "portaria lateral", "massa sem cebola").
 
 RESPONDA EXCLUSIVAMENTE COM UM OBJETO JSON VÁLIDO no seguinte formato (sem markdown, sem texto antes ou depois):
 {
@@ -87,6 +89,7 @@ RESPONDA EXCLUSIVAMENTE COM UM OBJETO JSON VÁLIDO no seguinte formato (sem mark
   "clienteEndereco": "Endereço se mencionado",
   "dataHoraEntrega": "YYYY-MM-DDTHH:mm:ss.sssZ",
   "tipoEntrega": "entrega" ou "retirada",
+  "tipoCobranca": "quinzenal" ou "padrao_50",
   "itens": [
     {
       "produtoId": "ID do produto do cardápio",

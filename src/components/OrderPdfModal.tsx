@@ -20,6 +20,12 @@ export function OrderPdfModal({ pedido, config, isOpen, onClose }: OrderPdfModal
 
   if (!isOpen || !pedido) return null;
 
+  const isQuinzenal =
+    pedido.tipoCobranca === 'quinzenal' ||
+    pedido.valorSinal === 0 ||
+    pedido.clienteNome.toLowerCase().includes('toca do urso') ||
+    pedido.clienteNome.toLowerCase().includes('urso');
+
   const dataFormatada = new Date(pedido.dataHoraEntrega).toLocaleDateString('pt-BR');
   const horaFormatada = new Date(pedido.dataHoraEntrega).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
@@ -67,6 +73,13 @@ export function OrderPdfModal({ pedido, config, isOpen, onClose }: OrderPdfModal
 
   const handleCompartilharWhatsApp = () => {
     const limpo = pedido.clienteTelefone.replace(/\D/g, '');
+
+    const cobrancaTxt = isQuinzenal
+      ? `📅 *Condição de Pagamento:* Faturamento Quinzenal (Sem sinal prévio)\n`
+      : `💳 *Sinal (50%):* R$ ${pedido.valorSinal.toFixed(2)} (${pedido.statusPagamento === 'quitado' ? 'Quitado' : 'Aguardando/Confirmado'})\n` +
+        `💵 *Saldo restante:* R$ ${pedido.valorRestante.toFixed(2)}\n\n` +
+        `*Chave Pix para pagamento:* ${config.chavePix} (${config.titularPix})\n`;
+
     const texto = encodeURIComponent(
       `Olá ${pedido.clienteNome}! Segue o detalhamento do seu *Pedido #${pedido.numeroPedido}* na *${config.nome}*:\n\n` +
       `📅 *Data de Entrega/Retirada:* ${dataFormatada} às ${horaFormatada}\n` +
@@ -74,10 +87,8 @@ export function OrderPdfModal({ pedido, config, isOpen, onClose }: OrderPdfModal
       `*Itens:*\n` +
       pedido.itens.map((i) => `• ${i.quantidade}x ${i.nomeProduto} — R$ ${i.subtotal.toFixed(2)}`).join('\n') +
       `\n\n💰 *Total:* R$ ${pedido.valorTotal.toFixed(2)}\n` +
-      `💳 *Sinal (50%):* R$ ${pedido.valorSinal.toFixed(2)} (${pedido.statusPagamento === 'quitado' ? 'Quitado' : 'Aguardando/Confirmado'})\n` +
-      `💵 *Saldo restante:* R$ ${pedido.valorRestante.toFixed(2)}\n\n` +
-      `*Chave Pix para pagamento:* ${config.chavePix} (${config.titularPix})\n\n` +
-      `Qualquer dúvida estamos à disposição!`
+      cobrancaTxt +
+      `\nQualquer dúvida estamos à disposição!`
     );
     window.open(`https://wa.me/55${limpo}?text=${texto}`, '_blank');
   };
@@ -259,15 +270,31 @@ export function OrderPdfModal({ pedido, config, isOpen, onClose }: OrderPdfModal
                   <h4 className="text-xs font-bold text-[#6E473B] uppercase tracking-wider mb-1">
                     FORMA DE PAGAMENTO
                   </h4>
-                  <p className="text-xs text-[#57372D]">
-                    Sinal de 50% (<strong>R$ {pedido.valorSinal.toFixed(2)}</strong>) via Pix
-                  </p>
-                  <p className="text-xs text-[#57372D]">
-                    Chave Pix: <strong>{config.chavePix}</strong> ({config.titularPix})
-                  </p>
-                  <p className="text-xs text-[#8E6554] mt-0.5">
-                    Saldo restante (<strong>R$ {pedido.valorRestante.toFixed(2)}</strong>) no ato da entrega/retirada.
-                  </p>
+                  {isQuinzenal ? (
+                    <>
+                      <p className="text-xs font-bold text-[#6E473B]">
+                        Faturamento Quinzenal (Convênio Corporativo)
+                      </p>
+                      <p className="text-xs text-[#57372D] mt-0.5">
+                        Pedido registrado sem cobrança de sinal prévio.
+                      </p>
+                      <p className="text-xs text-[#8E6554] mt-0.5">
+                        Fatura consolidada para liquidação quinzenal via Pix: <strong>{config.chavePix}</strong>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-[#57372D]">
+                        Sinal de 50% (<strong>R$ {pedido.valorSinal.toFixed(2)}</strong>) via Pix
+                      </p>
+                      <p className="text-xs text-[#57372D]">
+                        Chave Pix: <strong>{config.chavePix}</strong> ({config.titularPix})
+                      </p>
+                      <p className="text-xs text-[#8E6554] mt-0.5">
+                        Saldo restante (<strong>R$ {pedido.valorRestante.toFixed(2)}</strong>) no ato da entrega/retirada.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <div>

@@ -111,13 +111,14 @@ export const PRODUTOS_INICIAIS: Produto[] = [
 export const CLIENTES_INICIAIS: Cliente[] = [
   {
     id: 'cli-parque',
-    nome: 'Parque Temático (Parceiro Especial)',
+    nome: 'Parque Temático Toca do Urso',
     telefone: '(11) 97777-8888',
     endereco: 'Rodovia dos Parques, Km 15 - Portal da Serra',
-    googleMapsUrl: 'https://maps.google.com/?q=Parque+Tematico',
-    observacoes: 'Cliente corporativo com Tabela Especial de Parque Temático. Preços diferenciados por produto.',
+    googleMapsUrl: 'https://maps.google.com/?q=Toca+do+Urso',
+    observacoes: 'Cliente corporativo principal! Preços especiais por produto e acerto quinzenal (sem sinal de 50%).',
     isCasaDeEventos: true,
     tabelaPreco: 'parque',
+    tipoCobranca: 'quinzenal',
   },
   {
     id: 'cli-1',

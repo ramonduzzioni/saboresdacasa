@@ -73,9 +73,13 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
     setItens(itens.filter((x) => x.id !== id));
   };
 
+  const isQuinzenal =
+    clienteSelecionado?.tipoCobranca === 'quinzenal' ||
+    clienteSelecionado?.nome.toLowerCase().includes('urso');
+
   const valorTotal = itens.reduce((a, b) => a + b.subtotal, 0);
-  const valorSinal = Number((valorTotal * 0.5).toFixed(2));
-  const valorRestante = Number((valorTotal - valorSinal).toFixed(2));
+  const valorSinal = isQuinzenal ? 0 : Number((valorTotal * 0.5).toFixed(2));
+  const valorRestante = isQuinzenal ? valorTotal : Number((valorTotal - valorSinal).toFixed(2));
 
   const handleCriar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +99,7 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
       googleMapsUrl: cliente.googleMapsUrl,
       dataHoraEntrega: new Date(dataHora).toISOString(),
       tipoEntrega,
+      tipoCobranca: isQuinzenal ? 'quinzenal' : 'padrao_50',
       itens,
       valorTotal,
       valorSinal,

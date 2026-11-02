@@ -22,6 +22,7 @@ export interface Cliente {
   observacoes?: string;
   isCasaDeEventos?: boolean;
   tabelaPreco?: 'padrao' | 'parque'; // 'parque' ativa a tabela com preços diferenciados
+  tipoCobranca?: 'padrao_50' | 'quinzenal'; // 'quinzenal' dispensa sinal de 50%
 }
 
 export interface ItemPedido {
@@ -53,6 +54,7 @@ export interface Pedido {
   valorSinal: number;
   valorRestante: number;
   statusPagamento: StatusPagamento;
+  tipoCobranca?: 'padrao_50' | 'quinzenal';
   googleCalendarEventId?: string;
   observacoes?: string;
   createdAt: string;

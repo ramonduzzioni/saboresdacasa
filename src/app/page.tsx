@@ -255,8 +255,18 @@ export default function Home() {
       dateStyle: 'short',
       timeStyle: 'short',
     });
+    const isQuinzenal =
+      pedido.tipoCobranca === 'quinzenal' ||
+      pedido.valorSinal === 0 ||
+      pedido.clienteNome.toLowerCase().includes('toca do urso') ||
+      pedido.clienteNome.toLowerCase().includes('urso');
+
+    const cobrancaTxt = isQuinzenal
+      ? `*Total:* R$ ${pedido.valorTotal.toFixed(2)}\n*Condição:* Faturamento Quinzenal (Sem sinal prévio)`
+      : `*Total:* R$ ${pedido.valorTotal.toFixed(2)}\n*Sinal:* R$ ${pedido.valorSinal.toFixed(2)}\n*Saldo na entrega:* R$ ${pedido.valorRestante.toFixed(2)}`;
+
     const texto = encodeURIComponent(
-      `Olá ${pedido.clienteNome}! Aqui é da *${config.nome}*.\n\nPassando para confirmar seu pedido *#${pedido.numeroPedido}* agendado para *${dataFmt}*.\n\n*Total:* R$ ${pedido.valorTotal.toFixed(2)}\n*Sinal:* R$ ${pedido.valorSinal.toFixed(2)}\n*Saldo na entrega:* R$ ${pedido.valorRestante.toFixed(2)}\n\nQualquer ajuste de quantidades é só nos avisar!`
+      `Olá ${pedido.clienteNome}! Aqui é da *${config.nome}*.\n\nPassando para confirmar seu pedido *#${pedido.numeroPedido}* agendado para *${dataFmt}*.\n\n${cobrancaTxt}\n\nQualquer ajuste de quantidades é só nos avisar!`
     );
     window.open(`https://wa.me/55${limpo}?text=${texto}`, '_blank');
   };
@@ -674,13 +684,21 @@ export default function Home() {
                               R$ {pedido.valorTotal.toFixed(2)}
                             </strong>
                           </div>
-                          <div className="text-emerald-700 font-semibold">
-                            Sinal: R$ {pedido.valorSinal.toFixed(2)}
-                          </div>
-                          {pedido.valorRestante > 0 && (
-                            <div className="text-amber-800 font-semibold">
-                              Resta: R$ {pedido.valorRestante.toFixed(2)}
-                            </div>
+                          {pedido.tipoCobranca === 'quinzenal' || pedido.clienteNome.toLowerCase().includes('urso') || pedido.valorSinal === 0 ? (
+                            <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                              📅 Quinzenal (Sem Sinal)
+                            </span>
+                          ) : (
+                            <>
+                              <div className="text-emerald-700 font-semibold">
+                                Sinal: R$ {pedido.valorSinal.toFixed(2)}
+                              </div>
+                              {pedido.valorRestante > 0 && (
+                                <div className="text-amber-800 font-semibold">
+                                  Resta: R$ {pedido.valorRestante.toFixed(2)}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
 
