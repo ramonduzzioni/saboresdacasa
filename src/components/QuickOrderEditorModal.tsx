@@ -189,15 +189,27 @@ export function QuickOrderEditorModal({
                     <Trash2 className="w-5 h-5" />
                   </button>
 
-                  <div className="flex items-center gap-2">
-                    {/* Botão MENOS Gigante */}
+                  <div className="flex items-center gap-1.5">
+                    {/* Botão -10 para ajuste rápido em casas de festas */}
+                    {item.tipoUnidade !== 'kg' && (
+                      <button
+                        type="button"
+                        onClick={() => handleAlterarQuantidade(item.id, -10)}
+                        className="h-10 px-2 rounded-lg bg-[#FAF7F2] hover:bg-[#E8E2D9] border border-[#D8CABE] text-[#4A3026] text-xs font-bold active:scale-95 transition-all"
+                        title="Diminuir 10 unidades"
+                      >
+                        -10
+                      </button>
+                    )}
+
+                    {/* Botão MENOS 1 */}
                     <button
                       type="button"
                       onClick={() => handleAlterarQuantidade(item.id, -1)}
-                      className="w-12 h-12 rounded-xl bg-[#FAF7F2] hover:bg-[#E8E2D9] border-2 border-[#D8CABE] active:bg-[#C68A4C] active:text-white text-[#4A3026] font-extrabold text-2xl flex items-center justify-center transition-all shadow-xs active:scale-95"
+                      className="w-11 h-11 rounded-xl bg-[#FAF7F2] hover:bg-[#E8E2D9] border-2 border-[#D8CABE] active:bg-[#C68A4C] active:text-white text-[#4A3026] font-extrabold text-xl flex items-center justify-center transition-all shadow-xs active:scale-95"
                       aria-label="Diminuir quantidade"
                     >
-                      <Minus className="w-6 h-6 stroke-[3]" />
+                      <Minus className="w-5 h-5 stroke-[3]" />
                     </button>
 
                     {/* Input Numérico Direto */}
@@ -208,22 +220,34 @@ export function QuickOrderEditorModal({
                         min="0"
                         value={item.quantidade === 0 ? '' : item.quantidade}
                         onChange={(e) => handleInputQuantidade(item.id, e.target.value)}
-                        className="w-20 h-12 text-center text-xl font-bold bg-[#FAF7F2] border-2 border-[#6E473B] rounded-xl text-[#2C2420] focus:ring-2 focus:ring-[#C68A4C] focus:outline-hidden"
+                        className="w-18 h-11 text-center text-lg font-bold bg-[#FAF7F2] border-2 border-[#6E473B] rounded-xl text-[#2C2420] focus:ring-2 focus:ring-[#C68A4C] focus:outline-hidden"
                       />
-                      <span className="absolute -bottom-4 left-0 right-0 text-[10px] text-center font-bold text-[#8E6554] uppercase tracking-wider">
+                      <span className="absolute -bottom-3.5 left-0 right-0 text-[9px] text-center font-bold text-[#8E6554] uppercase tracking-wider">
                         {item.tipoUnidade}
                       </span>
                     </div>
 
-                    {/* Botão MAIS Gigante */}
+                    {/* Botão MAIS 1 */}
                     <button
                       type="button"
                       onClick={() => handleAlterarQuantidade(item.id, 1)}
-                      className="w-12 h-12 rounded-xl bg-[#6E473B] hover:bg-[#57372D] text-white active:bg-[#4A3026] font-extrabold text-2xl flex items-center justify-center transition-all shadow-sm active:scale-95"
+                      className="w-11 h-11 rounded-xl bg-[#6E473B] hover:bg-[#57372D] text-white active:bg-[#4A3026] font-extrabold text-xl flex items-center justify-center transition-all shadow-sm active:scale-95"
                       aria-label="Aumentar quantidade"
                     >
-                      <Plus className="w-6 h-6 stroke-[3]" />
+                      <Plus className="w-5 h-5 stroke-[3]" />
                     </button>
+
+                    {/* Botão +10 para ajuste rápido em casas de festas */}
+                    {item.tipoUnidade !== 'kg' && (
+                      <button
+                        type="button"
+                        onClick={() => handleAlterarQuantidade(item.id, 10)}
+                        className="h-10 px-2 rounded-lg bg-[#E6C285]/30 hover:bg-[#E6C285]/50 border border-[#C68A4C]/40 text-[#4A3026] text-xs font-bold active:scale-95 transition-all"
+                        title="Aumentar 10 unidades"
+                      >
+                        +10
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

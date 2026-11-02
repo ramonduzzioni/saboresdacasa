@@ -3,10 +3,10 @@ import { CLIENTES_INICIAIS, CONFIG_INICIAL, MOVIMENTACOES_INICIAIS, PEDIDOS_INIC
 
 const STORAGE_KEYS = {
   CONFIG: 'sabores_config_v1',
-  PRODUTOS: 'sabores_produtos_v1',
+  PRODUTOS: 'sabores_produtos_v2',
   CLIENTES: 'sabores_clientes_v1',
-  PEDIDOS: 'sabores_pedidos_v1',
-  MOVIMENTACOES: 'sabores_movimentacoes_v1',
+  PEDIDOS: 'sabores_pedidos_v2',
+  MOVIMENTACOES: 'sabores_movimentacoes_v2',
   GOOGLE_USER: 'sabores_google_user_v1',
 };
 

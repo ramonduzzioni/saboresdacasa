@@ -19,7 +19,7 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
   // Form State
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState<CategoriaProduto>('salgados');
-  const [tipoUnidade, setTipoUnidade] = useState<TipoUnidade>('cento');
+  const [tipoUnidade, setTipoUnidade] = useState<TipoUnidade>('unidade');
   const [precoBase, setPrecoBase] = useState('');
   const [descricao, setDescricao] = useState('');
 
@@ -27,7 +27,7 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
     setProdutoEmEdicao(null);
     setNome('');
     setCategoria('salgados');
-    setTipoUnidade('cento');
+    setTipoUnidade('unidade');
     setPrecoBase('');
     setDescricao('');
     setModalAberto(true);
@@ -215,9 +215,9 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
                     onChange={(e) => setTipoUnidade(e.target.value as TipoUnidade)}
                     className="w-full bg-white border border-[#D8CABE] rounded-xl p-2.5 text-sm text-[#2C2420] focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
                   >
-                    <option value="cento">Cento (100 un)</option>
-                    <option value="unidade">Unidade</option>
+                    <option value="unidade">Unidade (un)</option>
                     <option value="kg">Quilo (kg)</option>
+                    <option value="cento">Cento (100 un)</option>
                     <option value="porcao">Porção</option>
                   </select>
                 </div>

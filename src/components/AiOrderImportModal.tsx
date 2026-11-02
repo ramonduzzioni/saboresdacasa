@@ -34,9 +34,9 @@ export function AiOrderImportModal({
   const handleExemplo = () => {
     setTextoWhats(
       `Oi tudo bem? Aqui é do Espaço Villa Nobre! Queremos encomendar para amanhã às 18h:\n` +
-      `- 4 centos de coxinha tradicional\n` +
-      `- 3 centos de bolinha de queijo\n` +
-      `- 2 centos de brigadeiro belga\n` +
+      `- 140 coxinhas tradicionais\n` +
+      `- 85 bolinhas de queijo\n` +
+      `- 60 brigadeiros belga\n` +
       `Pode entregar direto na portaria lateral? Fritar bem quentinho!`
     );
   };
