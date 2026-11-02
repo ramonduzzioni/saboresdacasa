@@ -58,6 +58,19 @@ import {
 import { CONFIG_INICIAL } from '@/lib/initialData';
 import { GoogleUser } from '@/lib/storage';
 
+import { isSupabaseConfigured } from '@/lib/supabase';
+import {
+  syncProdutosFromSupabase,
+  saveProdutoToSupabase,
+  deleteProdutoFromSupabase,
+  syncClientesFromSupabase,
+  saveClienteToSupabase,
+  syncPedidosFromSupabase,
+  savePedidoToSupabase,
+  deletePedidoFromSupabase,
+} from '@/lib/supabaseSync';
+import { Database } from 'lucide-react';
+
 export default function Home() {
   // Estado Global
   const [config, setConfig] = useState<ConfiguracaoLoja>(CONFIG_INICIAL);
@@ -81,7 +94,7 @@ export default function Home() {
   const [buscaPedido, setBuscaPedido] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
 
-  // Carrega e sincroniza dados do LocalStorage
+  // Carrega e sincroniza dados do LocalStorage e Supabase
   const carregarDados = () => {
     setConfig(getConfig());
     setProdutos(getProdutos());
@@ -89,6 +102,13 @@ export default function Home() {
     setPedidos(getPedidos());
     setMovimentacoes(getMovimentacoes());
     setGoogleUser(getGoogleUser());
+
+    // Se o Supabase estiver configurado, sincroniza na nuvem
+    if (isSupabaseConfigured) {
+      syncProdutosFromSupabase(getProdutos()).then((p) => setProdutos(p));
+      syncClientesFromSupabase(getClientes()).then((c) => setClientes(c));
+      syncPedidosFromSupabase(getPedidos()).then((ped) => setPedidos(ped));
+    }
   };
 
   useEffect(() => {
@@ -101,12 +121,14 @@ export default function Home() {
   // Handlers para Pedidos
   const handleSavePedido = (p: Pedido) => {
     savePedido(p);
+    savePedidoToSupabase(p);
     carregarDados();
   };
 
   const handleDeletePedido = (id: string) => {
     if (confirm('Deseja realmente excluir este pedido?')) {
       deletePedido(id);
+      deletePedidoFromSupabase(id);
       carregarDados();
     }
   };
@@ -184,6 +206,13 @@ export default function Home() {
 
           {/* Usuário Google & Botão Config */}
           <div className="flex items-center gap-2">
+            {isSupabaseConfigured && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <Database className="w-3 h-3 text-emerald-600" />
+                Supabase Nuvem
+              </span>
+            )}
+
             {googleUser && (
               <div className="hidden sm:flex items-center gap-2 bg-[#FAF7F2] border border-[#E8E2D9] py-1 px-2.5 rounded-full">
                 <div className="w-6 h-6 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">
@@ -521,6 +550,7 @@ export default function Home() {
             clientes={clientes}
             onSaveCliente={(c) => {
               saveCliente(c);
+              saveClienteToSupabase(c);
               carregarDados();
             }}
             onDeleteCliente={(id) => {
@@ -536,10 +566,12 @@ export default function Home() {
             produtos={produtos}
             onSaveProduto={(p) => {
               saveProduto(p);
+              saveProdutoToSupabase(p);
               carregarDados();
             }}
             onDeleteProduto={(id) => {
               deleteProduto(id);
+              deleteProdutoFromSupabase(id);
               carregarDados();
             }}
           />
