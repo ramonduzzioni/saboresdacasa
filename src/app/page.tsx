@@ -54,6 +54,7 @@ import { ClientsManager } from '@/components/ClientsManager';
 import { ProductsManager } from '@/components/ProductsManager';
 import { FinanceDashboard } from '@/components/FinanceDashboard';
 import { StoreSettingsModal } from '@/components/StoreSettingsModal';
+import { ClientBillingReportModal } from '@/components/ClientBillingReportModal';
 
 import {
   Sparkles,
@@ -108,6 +109,8 @@ export default function Home() {
   const [modalAiAberto, setModalAiAberto] = useState(false);
   const [modalNovoPedidoAberto, setModalNovoPedidoAberto] = useState(false);
   const [modalConfigAberto, setModalConfigAberto] = useState(false);
+  const [modalRelatorioAberto, setModalRelatorioAberto] = useState(false);
+  const [clienteParaRelatorio, setClienteParaRelatorio] = useState<Cliente | null>(null);
 
   // Busca e Filtros de Pedidos
   const [buscaPedido, setBuscaPedido] = useState('');
@@ -272,6 +275,35 @@ export default function Home() {
       `Olá ${pedido.clienteNome}! Aqui é da *${config.nome}*.\n\nPassando para confirmar seu pedido *#${pedido.numeroPedido}* agendado para *${dataFmt}*.\n\n${cobrancaTxt}\n\nQualquer ajuste de quantidades é só nos avisar!`
     );
     window.open(`https://wa.me/55${limpo}?text=${texto}`, '_blank');
+  };
+
+  const handleOpenRelatorioCliente = (c?: Cliente) => {
+    setClienteParaRelatorio(c || null);
+    setModalRelatorioAberto(true);
+  };
+
+  const handleQuitarPedidosPeriodo = (pedidosIds: string[], valorTotal: number, clienteNome: string) => {
+    const novosPedidos = pedidos.map((p) => {
+      if (pedidosIds.includes(p.id)) {
+        const atualizado: Pedido = { ...p, statusPagamento: 'quitado', valorRestante: 0 };
+        savePedido(atualizado);
+        savePedidoToSupabase(atualizado);
+        return atualizado;
+      }
+      return p;
+    });
+    setPedidos(novosPedidos);
+
+    const novaMov: MovimentacaoFinanceira = {
+      id: `mov-${Date.now()}`,
+      tipo: 'entrada',
+      valor: valorTotal,
+      descricao: `Faturamento Quinzenal - ${clienteNome}`,
+      categoria: 'Faturamento Corporativo',
+      data: new Date().toISOString(),
+    };
+    addMovimentacao(novaMov);
+    setMovimentacoes(getMovimentacoes());
   };
 
   // Filtra pedidos da aba e sempre ordena pela data/hora de entrega mais próxima (cronológico)
@@ -783,6 +815,7 @@ export default function Home() {
               deleteCliente(id);
               carregarDados();
             }}
+            onOpenRelatorio={(c) => handleOpenRelatorioCliente(c)}
           />
         )}
 
@@ -812,6 +845,7 @@ export default function Home() {
               addMovimentacao(m);
               carregarDados();
             }}
+            onOpenRelatorioQuinzenal={() => handleOpenRelatorioCliente()}
           />
         )}
 
@@ -888,6 +922,17 @@ export default function Home() {
           }}
         />
       )}
+
+      {/* MODAL 6: RELATÓRIO DE FATURAMENTO & COBRANÇA QUINZENAL (TOCA DO URSO / CLIENTES) */}
+      <ClientBillingReportModal
+        isOpen={modalRelatorioAberto}
+        onClose={() => setModalRelatorioAberto(false)}
+        clienteInicial={clienteParaRelatorio}
+        clientes={clientes}
+        pedidos={pedidos}
+        config={config}
+        onQuitarPedidosPeriodo={handleQuitarPedidosPeriodo}
+      />
 
     </div>
   );

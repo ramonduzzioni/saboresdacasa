@@ -2,15 +2,16 @@
 
 import React, { useState } from 'react';
 import { MovimentacaoFinanceira, Pedido } from '@/types';
-import { TrendingUp, TrendingDown, DollarSign, PlusCircle, Calendar, ArrowUpRight, ArrowDownRight, BarChart3, Check, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, PlusCircle, Calendar, ArrowUpRight, ArrowDownRight, BarChart3, Check, X, Receipt } from 'lucide-react';
 
 interface FinanceDashboardProps {
   movimentacoes: MovimentacaoFinanceira[];
   pedidos: Pedido[];
   onAddMovimentacao: (mov: MovimentacaoFinanceira) => void;
+  onOpenRelatorioQuinzenal?: () => void;
 }
 
-export function FinanceDashboard({ movimentacoes, pedidos, onAddMovimentacao }: FinanceDashboardProps) {
+export function FinanceDashboard({ movimentacoes, pedidos, onAddMovimentacao, onOpenRelatorioQuinzenal }: FinanceDashboardProps) {
   const [modalAberto, setModalAberto] = useState(false);
   const [tipo, setTipo] = useState<'entrada' | 'saida'>('saida');
   const [valor, setValor] = useState('');
@@ -70,6 +71,36 @@ export function FinanceDashboard({ movimentacoes, pedidos, onAddMovimentacao }: 
   return (
     <div className="space-y-6">
       
+      {/* Banner de Ação Rápida: Fechamento Quinzenal (Toca do Urso / Clientes) */}
+      <div className="bg-gradient-to-r from-[#4A3026] via-[#5A382E] to-[#6E473B] text-white p-4 sm:p-5 rounded-3xl shadow-md border border-[#FAF7F2]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-[#E6C285]/20 text-[#E6C285] flex items-center justify-center shrink-0 border border-[#E6C285]/30">
+            <Receipt className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-extrabold text-base sm:text-lg text-[#FAF7F2]">
+                Fechamento Quinzenal de Cobrança
+              </h3>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                Toca do Urso & Clientes
+              </span>
+            </div>
+            <p className="text-xs text-[#FAF7F2]/80 mt-0.5">
+              Extrato consolidado para enviar dias 15 e último dia do mês com PDF timbrado e WhatsApp
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={onOpenRelatorioQuinzenal}
+          className="px-4 py-2.5 rounded-xl bg-[#E6C285] hover:bg-[#d4ad6e] text-[#4A3026] text-xs font-black shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 shrink-0"
+        >
+          <Receipt className="w-4 h-4" />
+          <span>Extrato Quinzenal</span>
+        </button>
+      </div>
+
       {/* Cards de Métricas Principais */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         

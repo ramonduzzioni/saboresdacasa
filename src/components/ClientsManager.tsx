@@ -2,15 +2,21 @@
 
 import React, { useState } from 'react';
 import { Cliente } from '@/types';
-import { Users, Plus, Edit2, Trash2, MapPin, Navigation, Phone, Search, Building2, ExternalLink, Check, X, Tag } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, MapPin, Navigation, Phone, Search, Building2, ExternalLink, Check, X, Tag, Receipt } from 'lucide-react';
 
 interface ClientsManagerProps {
   clientes: Cliente[];
   onSaveCliente: (cliente: Cliente) => void;
   onDeleteCliente: (id: string) => void;
+  onOpenRelatorio?: (cliente: Cliente) => void;
 }
 
-export function ClientsManager({ clientes, onSaveCliente, onDeleteCliente }: ClientsManagerProps) {
+export function ClientsManager({
+  clientes,
+  onSaveCliente,
+  onDeleteCliente,
+  onOpenRelatorio,
+}: ClientsManagerProps) {
   const [busca, setBusca] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [clienteEmEdicao, setClienteEmEdicao] = useState<Cliente | null>(null);
@@ -179,15 +185,25 @@ export function ClientsManager({ clientes, onSaveCliente, onDeleteCliente }: Cli
               )}
             </div>
 
-            {/* Rodapé com botão de WhatsApp rápido */}
-            <div className="pt-3 mt-2 border-t border-[#F2EDE4] flex justify-end">
+            {/* Rodapé com botão de WhatsApp rápido e Extrato Quinzenal */}
+            <div className="pt-3 mt-2 border-t border-[#F2EDE4] flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenRelatorio?.(cliente)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#6E473B] hover:text-[#4A3026] bg-[#FAF7F2] hover:bg-[#E8E2D9] px-2.5 py-1.5 rounded-lg border border-[#D8CABE] transition-colors"
+                title="Ver extrato e faturamento quinzenal para cobrança"
+              >
+                <Receipt className="w-3.5 h-3.5 text-[#C68A4C]" />
+                <span>Extrato Quinzenal</span>
+              </button>
+
               <a
                 href={`https://wa.me/55${cliente.telefone.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800"
               >
-                <span>Chamar no WhatsApp</span>
+                <span>Chamar</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
