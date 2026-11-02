@@ -1,9 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Cliente, ItemPedido, Pedido, Produto } from '@/types';
 import { getPrecoProdutoParaCliente } from '@/lib/storage';
-import { X, Plus, Minus, Trash2, Check, Calendar, Clock, MapPin, AlertCircle, Tag } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Minus,
+  Trash2,
+  Check,
+  Calendar,
+  Clock,
+  MapPin,
+  AlertCircle,
+  Tag,
+  Search,
+  User,
+  Phone,
+  Building2,
+} from 'lucide-react';
 
 interface NewOrderModalProps {
   clientes: Cliente[];
@@ -14,16 +29,64 @@ interface NewOrderModalProps {
 }
 
 export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: NewOrderModalProps) {
-  const [clienteId, setClienteId] = useState(clientes[0]?.id || '');
-  const [dataHora, setDataHora] = useState('2026-11-02T18:00');
+  const [clienteId, setClienteId] = useState('');
+  const [buscaCliente, setBuscaCliente] = useState('');
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
+  const [dataHora, setDataHora] = useState('');
   const [tipoEntrega, setTipoEntrega] = useState<'entrega' | 'retirada'>('entrega');
   const [observacoes, setObservacoes] = useState('');
   const [itens, setItens] = useState<ItemPedido[]>([]);
   const [produtoSel, setProdutoSel] = useState('');
 
-  if (!isOpen) return null;
+  // Inicializa e sincroniza os dados do cliente sempre que o modal abre ou a lista carrega
+  useEffect(() => {
+    if (isOpen) {
+      if (clientes.length > 0) {
+        // Dá preferência a selecionar a Toca do Urso ou o primeiro da lista
+        const preferido =
+          clientes.find((c) => c.nome.toLowerCase().includes('urso')) || clientes[0];
+        setClienteId(preferido.id);
+        setBuscaCliente(preferido.nome);
+      } else {
+        setClienteId('');
+        setBuscaCliente('');
+      }
 
-  const clienteSelecionado = clientes.find((c) => c.id === clienteId);
+      // Horário padrão: hoje + 2 horas
+      const d = new Date();
+      d.setHours(d.getHours() + 2);
+      d.setMinutes(0);
+      const ano = d.getFullYear();
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const dia = String(d.getDate()).padStart(2, '0');
+      const hora = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      setDataHora(`${ano}-${mes}-${dia}T${hora}:${min}`);
+
+      setItens([]);
+      setObservacoes('');
+      setProdutoSel('');
+      setMostrarSugestoes(false);
+    }
+  }, [isOpen, clientes]);
+
+  const clienteSelecionado = useMemo(() => {
+    return clientes.find((c) => c.id === clienteId) || null;
+  }, [clientes, clienteId]);
+
+  // Filtra clientes pelo nome digitado na busca
+  const clientesFiltrados = useMemo(() => {
+    if (!buscaCliente.trim()) return clientes;
+    const termo = buscaCliente.toLowerCase().trim();
+    return clientes.filter(
+      (c) =>
+        c.nome.toLowerCase().includes(termo) ||
+        c.telefone.replace(/\D/g, '').includes(termo.replace(/\D/g, '')) ||
+        c.endereco.toLowerCase().includes(termo)
+    );
+  }, [clientes, buscaCliente]);
+
+  if (!isOpen) return null;
 
   const handleAddItem = () => {
     if (!produtoSel) return;
@@ -124,26 +187,159 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
         </div>
 
         <form onSubmit={handleCriar} className="p-4 space-y-3.5 overflow-y-auto flex-1">
+          {/* SELEÇÃO E BUSCA DE CLIENTE PELO NOME CADASTRADO */}
           <div>
-            <label className="block text-xs font-bold text-[#6E473B] mb-1">Cliente *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-[#6E473B]">
+                Puxar Cliente Cadastrado *
+              </label>
+              <span className="text-[11px] text-neutral-500 font-medium">
+                {clientes.length} clientes cadastrados
+              </span>
+            </div>
+
+            {/* Campo 1: Digitação do Nome com Autocomplete / Sugestões */}
+            <div className="relative mb-2">
+              <div className="relative">
+                <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={buscaCliente}
+                  onChange={(e) => {
+                    setBuscaCliente(e.target.value);
+                    setMostrarSugestoes(true);
+                  }}
+                  onFocus={() => setMostrarSugestoes(true)}
+                  placeholder="Digite para buscar pelo nome (ex: Toca do Urso, Mariana...)"
+                  className="w-full bg-white border border-[#D8CABE] rounded-xl pl-9 pr-8 py-2 text-xs font-semibold text-[#2C2420] focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden placeholder:text-neutral-400"
+                />
+                {buscaCliente && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBuscaCliente('');
+                      setMostrarSugestoes(true);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Lista suspensa de clientes encontrados pelo nome */}
+              {mostrarSugestoes && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#D8CABE] rounded-xl shadow-xl z-30 max-h-48 overflow-y-auto divide-y divide-neutral-100 animate-in fade-in">
+                  {clientesFiltrados.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-neutral-500">
+                      Nenhum cliente cadastrado com este nome.
+                    </div>
+                  ) : (
+                    clientesFiltrados.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setClienteId(c.id);
+                          setBuscaCliente(c.nome);
+                          setMostrarSugestoes(false);
+                        }}
+                        className={`w-full text-left p-2.5 hover:bg-[#FAF7F2] transition-colors flex items-center justify-between gap-2 ${
+                          clienteId === c.id ? 'bg-[#F5EFE6]' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-bold text-[#2C2420] flex items-center gap-1.5">
+                            <span>{c.nome}</span>
+                            {c.tabelaPreco === 'parque' && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-extrabold border border-amber-300">
+                                🎡 Tabela Parque
+                              </span>
+                            )}
+                            {c.tipoCobranca === 'quinzenal' && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-900 font-extrabold">
+                                📅 Quinzenal
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-neutral-500">
+                            {c.telefone} • {c.endereco || 'Retirada no Balcão'}
+                          </div>
+                        </div>
+                        {clienteId === c.id && (
+                          <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Campo 2: Seletor Dropdown Completo */}
             <select
               value={clienteId}
-              onChange={(e) => setClienteId(e.target.value)}
-              className="w-full bg-white border border-[#D8CABE] rounded-xl p-2.5 text-sm font-semibold text-[#2C2420] focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
+              onChange={(e) => {
+                const id = e.target.value;
+                setClienteId(id);
+                const sel = clientes.find((c) => c.id === id);
+                if (sel) {
+                  setBuscaCliente(sel.nome);
+                }
+                setMostrarSugestoes(false);
+              }}
+              className="w-full bg-white border border-[#D8CABE] rounded-xl p-2.5 text-xs font-bold text-[#2C2420] focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
             >
+              <option value="">-- Ou escolha na lista de clientes --</option>
               {clientes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nome} {c.tabelaPreco === 'parque' ? '🎡 (Tabela Parque)' : ''} ({c.telefone})
                 </option>
               ))}
             </select>
+
+            {/* Card com os dados puxados do cliente */}
+            {clienteSelecionado && (
+              <div className="mt-2.5 p-3 rounded-xl bg-white border border-[#E8E2D9] text-xs shadow-xs space-y-1.5 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-[#6E473B]" />
+                    <span className="font-extrabold text-sm text-[#4A3026]">
+                      {clienteSelecionado.nome}
+                    </span>
+                  </div>
+                  {isQuinzenal ? (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                      📅 Faturamento Quinzenal (Sem Sinal)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      Sinal 50%
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 text-neutral-600 text-[11px] pt-1 border-t border-[#F2EDE4]">
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-neutral-400" />
+                    <strong>{clienteSelecionado.telefone}</strong>
+                  </span>
+                  {clienteSelecionado.endereco && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+                      <span>{clienteSelecionado.endereco}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {clienteSelecionado?.tabelaPreco === 'parque' && (
             <div className="bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-xs text-amber-900 flex items-center gap-2 animate-in fade-in">
               <span className="text-lg shrink-0">🎡</span>
               <div className="leading-snug">
-                <strong>Tabela do Parque Temático Ativa:</strong> Os produtos adicionados puxarão automaticamente os preços especiais combinados com o parque.
+                <strong>Tabela do Parque Temático Ativa:</strong> Os produtos adicionados puxarão automaticamente os preços negociados com a Toca do Urso.
               </div>
             </div>
           )}
