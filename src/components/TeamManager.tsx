@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { PapelUsuario, UsuarioPermitido } from '@/types';
-import { Users, UserPlus, Shield, ShieldCheck, Trash2, Check, X, Crown, ChefHat, Mail } from 'lucide-react';
+import { Users, UserPlus, Shield, ShieldCheck, Trash2, Check, X, Crown, ChefHat, Mail, KeyRound } from 'lucide-react';
+import { getSecurityPin, saveSecurityPin } from '@/lib/storage';
 
 interface TeamManagerProps {
   usuarios: UsuarioPermitido[];
@@ -15,6 +16,16 @@ export function TeamManager({ usuarios, onSaveUsuario, onDeleteUsuario }: TeamMa
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [papel, setPapel] = useState<PapelUsuario>('atendente');
+  const [pinAtual, setPinAtual] = useState(getSecurityPin());
+  const [salvouPin, setSalvouPin] = useState(false);
+
+  const handleSalvarPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pinAtual.trim()) return;
+    saveSecurityPin(pinAtual.trim());
+    setSalvouPin(true);
+    setTimeout(() => setSalvouPin(false), 3000);
+  };
 
   const handleSalvar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +98,39 @@ export function TeamManager({ usuarios, onSaveUsuario, onDeleteUsuario }: TeamMa
             Perfeito para funcionários: podem ver agenda, lançar pedidos, importar do WhatsApp e gerar PDF, mas <strong>NÃO veem a aba financeira nem faturamento</strong>.
           </p>
         </div>
+      </div>
+
+      {/* PIN de Segurança Global da Confeitaria */}
+      <div className="bg-white p-5 rounded-2xl border border-[#E8E2D9] shadow-xs">
+        <form onSubmit={handleSalvarPin} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200">
+              <KeyRound className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-[#2C2420]">PIN de Segurança do Sistema</h3>
+              <p className="text-xs text-[#8E6554]">
+                Código de 4 dígitos exigido para entrar junto com o e-mail autorizado
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="text"
+              maxLength={6}
+              value={pinAtual}
+              onChange={(e) => setPinAtual(e.target.value)}
+              className="w-24 bg-[#FAF7F2] border border-[#D8CABE] rounded-xl px-3 py-2 text-center font-black tracking-widest text-sm text-[#2C2420] focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
+            />
+            <button
+              type="submit"
+              className="py-2 px-4 rounded-xl bg-[#6E473B] hover:bg-[#57372D] text-white text-xs font-bold transition-all shadow-xs"
+            >
+              {salvouPin ? 'Salvo! ✓' : 'Alterar PIN'}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Lista de Usuários Autorizados */}
