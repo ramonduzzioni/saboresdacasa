@@ -272,17 +272,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Configurações (Apenas Proprietária) */}
-            {isAdmin && (
-              <button
-                onClick={() => setModalConfigAberto(true)}
-                className="p-2 rounded-xl bg-[#FAF7F2] hover:bg-[#E8E2D9] text-[#6E473B] border border-[#E8E2D9] transition-colors"
-                title="Configurações da Confeitaria e PDF"
-              >
-                <Settings className="w-5 h-5" />
-              </button>
-            )}
-
             {/* Botão Sair */}
             <button
               onClick={handleLogout}
@@ -346,45 +335,119 @@ export default function Home() {
           </button>
         </div>
 
-        {/* NAVEGAÇÃO DE ABAS COM CONTROLE DE PERMISSÃO (OTIMIZADO MOBILE) */}
-        <div className="flex items-center gap-1 p-1 bg-white rounded-2xl border border-[#E8E2D9] mb-6 overflow-x-auto scrollbar-none shadow-xs">
-          {[
-            { id: 'pedidos', label: 'Pedidos', icon: ShoppingBag, count: pedidos.length },
-            { id: 'clientes', label: 'Clientes', icon: Users, count: clientes.length },
-            { id: 'produtos', label: 'Cardápio', icon: UtensilsCrossed, count: produtos.length },
-            ...(isAdmin
-              ? [
-                  { id: 'admin', label: 'Caixa', icon: BarChart3 },
-                  { id: 'equipe', label: 'Equipe', icon: ShieldCheck, count: usuariosAutorizados.length },
-                ]
-              : []),
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const ativo = abaAtiva === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setAbaAtiva(tab.id as any)}
-                className={`flex-1 min-w-0 py-2.5 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1 sm:gap-1.5 transition-all whitespace-nowrap ${
-                  ativo
-                    ? 'bg-[#6E473B] text-white shadow-xs'
-                    : 'text-[#6E473B] hover:bg-[#FAF7F2]'
+        {/* NAVEGAÇÃO EM 2 FILAS SIMÉTRICAS (GRID 3x2 COM 6 BOTÕES) */}
+        <div className="bg-white p-2 rounded-2xl border border-[#E8E2D9] mb-6 shadow-xs">
+          <div className="grid grid-cols-3 gap-2">
+            
+            {/* 1. Pedidos */}
+            <button
+              onClick={() => setAbaAtiva('pedidos')}
+              className={`py-3 px-1.5 rounded-xl font-extrabold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${
+                abaAtiva === 'pedidos'
+                  ? 'bg-[#6E473B] text-white shadow-xs'
+                  : 'bg-[#FAF7F2] text-[#6E473B] hover:bg-[#E8E2D9] border border-[#E8E2D9]'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 shrink-0" />
+              <span>Pedidos</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  abaAtiva === 'pedidos' ? 'bg-white/20 text-white' : 'bg-[#E8E2D9] text-[#6E473B]'
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span>{tab.label}</span>
-                {tab.count !== undefined && (
+                {pedidos.length}
+              </span>
+            </button>
+
+            {/* 2. Clientes */}
+            <button
+              onClick={() => setAbaAtiva('clientes')}
+              className={`py-3 px-1.5 rounded-xl font-extrabold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${
+                abaAtiva === 'clientes'
+                  ? 'bg-[#6E473B] text-white shadow-xs'
+                  : 'bg-[#FAF7F2] text-[#6E473B] hover:bg-[#E8E2D9] border border-[#E8E2D9]'
+              }`}
+            >
+              <Users className="w-4 h-4 shrink-0" />
+              <span>Clientes</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  abaAtiva === 'clientes' ? 'bg-white/20 text-white' : 'bg-[#E8E2D9] text-[#6E473B]'
+                }`}
+              >
+                {clientes.length}
+              </span>
+            </button>
+
+            {/* 3. Cardápio */}
+            <button
+              onClick={() => setAbaAtiva('produtos')}
+              className={`py-3 px-1.5 rounded-xl font-extrabold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${
+                abaAtiva === 'produtos'
+                  ? 'bg-[#6E473B] text-white shadow-xs'
+                  : 'bg-[#FAF7F2] text-[#6E473B] hover:bg-[#E8E2D9] border border-[#E8E2D9]'
+              }`}
+            >
+              <UtensilsCrossed className="w-4 h-4 shrink-0" />
+              <span>Cardápio</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  abaAtiva === 'produtos' ? 'bg-white/20 text-white' : 'bg-[#E8E2D9] text-[#6E473B]'
+                }`}
+              >
+                {produtos.length}
+              </span>
+            </button>
+
+            {/* Segunda Linha: Exclusiva da Proprietária (Simetria perfeita de 6 botões) */}
+            {isAdmin && (
+              <>
+                {/* 4. Caixa */}
+                <button
+                  onClick={() => setAbaAtiva('admin')}
+                  className={`py-3 px-1.5 rounded-xl font-extrabold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${
+                    abaAtiva === 'admin'
+                      ? 'bg-[#6E473B] text-white shadow-xs'
+                      : 'bg-[#FAF7F2] text-[#6E473B] hover:bg-[#E8E2D9] border border-[#E8E2D9]'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4 shrink-0" />
+                  <span>Caixa</span>
+                </button>
+
+                {/* 5. Equipe */}
+                <button
+                  onClick={() => setAbaAtiva('equipe')}
+                  className={`py-3 px-1.5 rounded-xl font-extrabold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${
+                    abaAtiva === 'equipe'
+                      ? 'bg-[#6E473B] text-white shadow-xs'
+                      : 'bg-[#FAF7F2] text-[#6E473B] hover:bg-[#E8E2D9] border border-[#E8E2D9]'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>Equipe</span>
                   <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
-                      ativo ? 'bg-white/20 text-[#FAF7F2]' : 'bg-[#E8E2D9] text-[#6E473B]'
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      abaAtiva === 'equipe' ? 'bg-white/20 text-white' : 'bg-[#E8E2D9] text-[#6E473B]'
                     }`}
                   >
-                    {tab.count}
+                    {usuariosAutorizados.length}
                   </span>
-                )}
-              </button>
-            );
-          })}
+                </button>
+
+                {/* 6. Ajustes (O 6º botão simétrico, substitui a engrenagem do topo) */}
+                <button
+                  onClick={() => setModalConfigAberto(true)}
+                  className="py-3 px-1.5 rounded-xl font-extrabold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 transition-all bg-[#FAF7F2] text-[#6E473B] hover:bg-[#E8E2D9] border border-[#E8E2D9] active:scale-95"
+                  title="Configurações da Confeitaria, Chave Pix e PDF"
+                >
+                  <Settings className="w-4 h-4 shrink-0" />
+                  <span>Ajustes</span>
+                </button>
+              </>
+            )}
+
+          </div>
         </div>
 
         {/* CONTEÚDO DA ABA SELECIONADA */}
