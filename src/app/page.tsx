@@ -68,6 +68,8 @@ import {
   Navigation,
   MessageCircle,
   FileText,
+  Calendar,
+  CalendarPlus,
   Edit3,
   Trash2,
   CheckCircle2,
@@ -81,6 +83,7 @@ import {
 } from 'lucide-react';
 
 import { CONFIG_INICIAL } from '@/lib/initialData';
+import { getGoogleCalendarLink } from '@/lib/calendar';
 
 export default function Home() {
   // Estado de Autenticação & Sessão
@@ -271,14 +274,16 @@ export default function Home() {
     window.open(`https://wa.me/55${limpo}?text=${texto}`, '_blank');
   };
 
-  // Filtra pedidos da aba
-  const pedidosFiltrados = pedidos.filter((p) => {
-    const matchBusca =
-      p.clienteNome.toLowerCase().includes(buscaPedido.toLowerCase()) ||
-      p.numeroPedido.toString().includes(buscaPedido);
-    const matchStatus = filtroStatus === 'todos' || p.statusPagamento === filtroStatus;
-    return matchBusca && matchStatus;
-  });
+  // Filtra pedidos da aba e sempre ordena pela data/hora de entrega mais próxima (cronológico)
+  const pedidosFiltrados = [...pedidos]
+    .filter((p) => {
+      const matchBusca =
+        p.clienteNome.toLowerCase().includes(buscaPedido.toLowerCase()) ||
+        p.numeroPedido.toString().includes(buscaPedido);
+      const matchStatus = filtroStatus === 'todos' || p.statusPagamento === filtroStatus;
+      return matchBusca && matchStatus;
+    })
+    .sort((a, b) => new Date(a.dataHoraEntrega).getTime() - new Date(b.dataHoraEntrega).getTime());
 
   // SE NÃO ESTIVER LOGADO: EXIBE A TELA DE LOGIN COM GOOGLE E O LOGO DA CONFEITARIA
   if (!carregouAuth || !sessao) {
@@ -723,6 +728,17 @@ export default function Home() {
                           >
                             <MessageCircle className="w-4 h-4" />
                           </button>
+
+                          {/* GOOGLE AGENDA */}
+                          <a
+                            href={getGoogleCalendarLink(pedido)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition-colors active:scale-95 flex items-center justify-center"
+                            title="Adicionar evento ao Google Agenda com 1 clique"
+                          >
+                            <CalendarPlus className="w-4 h-4 text-amber-800" />
+                          </a>
 
                           {/* PDF */}
                           <button

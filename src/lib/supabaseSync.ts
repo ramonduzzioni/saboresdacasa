@@ -129,24 +129,27 @@ export async function syncPedidosFromSupabase(fallback: Pedido[]): Promise<Pedid
     if (error || !data || data.length === 0) {
       return fallback;
     }
-    return data.map((d: any) => ({
-      id: d.id,
-      numeroPedido: d.numero_pedido,
-      clienteId: d.cliente_id || '',
-      clienteNome: d.cliente_nome,
-      clienteTelefone: d.cliente_telefone,
-      clienteEndereco: d.cliente_endereco || '',
-      googleMapsUrl: d.google_maps_url || '',
-      dataHoraEntrega: d.data_hora_entrega,
-      tipoEntrega: d.tipo_entrega || 'entrega',
-      itens: d.itens || [],
-      valorTotal: Number(d.valor_total),
-      valorSinal: Number(d.valor_sinal),
-      valorRestante: Number(d.valor_restante),
-      statusPagamento: d.status_pagamento || 'pendente',
-      observacoes: d.observacoes || '',
-      createdAt: d.created_at || new Date().toISOString(),
-    }));
+    return data
+      .map((d: any) => ({
+        id: d.id,
+        numeroPedido: d.numero_pedido,
+        clienteId: d.cliente_id || '',
+        clienteNome: d.cliente_nome,
+        clienteTelefone: d.cliente_telefone,
+        clienteEndereco: d.cliente_endereco || '',
+        googleMapsUrl: d.google_maps_url || '',
+        dataHoraEntrega: d.data_hora_entrega,
+        tipoEntrega: d.tipo_entrega || 'entrega',
+        itens: d.itens || [],
+        valorTotal: Number(d.valor_total),
+        valorSinal: Number(d.valor_sinal),
+        valorRestante: Number(d.valor_restante),
+        statusPagamento: d.status_pagamento || 'pendente',
+        tipoCobranca: d.tipo_cobranca || (d.cliente_nome?.toLowerCase().includes('urso') ? 'quinzenal' : 'padrao_50'),
+        observacoes: d.observacoes || '',
+        createdAt: d.created_at || new Date().toISOString(),
+      }))
+      .sort((a: any, b: any) => new Date(a.dataHoraEntrega).getTime() - new Date(b.dataHoraEntrega).getTime());
   } catch (err) {
     console.warn('Erro ao sincronizar pedidos do Supabase:', err);
     return fallback;

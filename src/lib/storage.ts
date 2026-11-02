@@ -129,8 +129,10 @@ export function savePedido(pedido: Pedido): void {
   if (idx >= 0) {
     list[idx] = pedido;
   } else {
-    list.unshift(pedido);
+    list.push(pedido);
   }
+  // Sempre reordena por data e hora de entrega (mais próxima primeiro)
+  list.sort((a, b) => new Date(a.dataHoraEntrega).getTime() - new Date(b.dataHoraEntrega).getTime());
   setLocal(STORAGE_KEYS.PEDIDOS, list);
 }
 

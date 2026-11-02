@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Pedido, ConfiguracaoLoja } from '@/types';
-import { Calendar, Clock, MapPin, ShoppingBag, Edit3, MessageCircle, FileText, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, ShoppingBag, Edit3, MessageCircle, FileText, CheckCircle2, CalendarPlus } from 'lucide-react';
+import { getGoogleCalendarLink } from '@/lib/calendar';
 
 interface TopAgendaWidgetProps {
   pedidos: Pedido[];
@@ -18,12 +19,15 @@ export function TopAgendaWidget({ pedidos, config, onEditQuick, onOpenPdf }: Top
     setMounted(true);
   }, []);
 
-  // Pega os 4 próximos pedidos ordenados por data
+  // Pega os 4 próximos pedidos rigorosamente ordenados por data e hora de entrega mais próxima
   const proximosQuatro = mounted
-    ? pedidos
+    ? [...pedidos]
         .filter((p) => new Date(p.dataHoraEntrega).getTime() >= Date.now() - 3 * 3600 * 1000)
+        .sort((a, b) => new Date(a.dataHoraEntrega).getTime() - new Date(b.dataHoraEntrega).getTime())
         .slice(0, 4)
-    : pedidos.slice(0, 4);
+    : [...pedidos]
+        .sort((a, b) => new Date(a.dataHoraEntrega).getTime() - new Date(b.dataHoraEntrega).getTime())
+        .slice(0, 4);
 
   const formatarDataHora = (iso: string) => {
     try {
@@ -68,14 +72,14 @@ export function TopAgendaWidget({ pedidos, config, onEditQuick, onOpenPdf }: Top
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-[#FAF7F2]">
-                Agenda Google Conectada
+                Agenda de Entregas & Produção
               </h2>
               <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                <CheckCircle2 className="w-3 h-3" /> Sincronizada
+                <CheckCircle2 className="w-3 h-3" /> Ordenada por Horário
               </span>
             </div>
             <p className="text-xs text-[#FAF7F2]/70">
-              Próximos 4 pedidos agendados para entrega ou retirada
+              Próximos pedidos agendados por ordem de entrega
             </p>
           </div>
         </div>
@@ -102,15 +106,27 @@ export function TopAgendaWidget({ pedidos, config, onEditQuick, onOpenPdf }: Top
                 className="bg-[#FAF7F2] text-[#2C2420] rounded-xl p-3.5 flex flex-col justify-between shadow-sm hover:shadow-md transition-all border border-[#E8E2D9]"
               >
                 <div>
-                  {/* Badge de Horário e Tipo */}
+                  {/* Badge de Horário e Google Agenda */}
                   <div className="flex items-center justify-between gap-1 mb-2">
-                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-md bg-[#6E473B] text-[#FAF7F2]">
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-md bg-[#6E473B] text-[#FAF7F2]">
                       <Clock className="w-3 h-3 text-[#E6C285]" />
                       {formatarDataHora(pedido.dataHoraEntrega)}
                     </span>
-                    <span className="text-[11px] font-semibold text-[#6E473B] uppercase tracking-wider">
-                      #{pedido.numeroPedido}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <a
+                        href={getGoogleCalendarLink(pedido)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 rounded-md bg-[#E8E2D9] hover:bg-white text-[#4A3026] text-[11px] font-bold inline-flex items-center gap-1 transition-all active:scale-95"
+                        title="Adicionar evento ao Google Agenda com 1 clique"
+                      >
+                        <CalendarPlus className="w-3.5 h-3.5 text-[#6E473B]" />
+                        <span className="text-[10px] hidden sm:inline">+ Google</span>
+                      </a>
+                      <span className="text-[11px] font-semibold text-[#6E473B] uppercase tracking-wider">
+                        #{pedido.numeroPedido}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Nome do Cliente */}
