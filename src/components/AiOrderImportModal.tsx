@@ -74,6 +74,12 @@ export function AiOrderImportModal({
         const nomeLower = geminiResult.clienteNome.toLowerCase();
         cliente = clientes.find((c) => c.nome.toLowerCase().includes(nomeLower) || nomeLower.includes(c.nome.toLowerCase().split(' ')[0]));
       }
+      if (!cliente) {
+        const textoLower = textoWhats.toLowerCase();
+        if (textoLower.includes('urso') || textoLower.includes('toca') || textoLower.includes('parque')) {
+          cliente = clientes.find((c) => c.nome.toLowerCase().includes('urso') || c.nome.toLowerCase().includes('parque'));
+        }
+      }
       if (!cliente && clientes.length > 0) {
         cliente = clientes[0];
       }
@@ -150,11 +156,18 @@ export function AiOrderImportModal({
     const textoLower = textoWhats.toLowerCase();
 
     let clienteDetectado = clientes.find((c) =>
+      (textoLower.includes('urso') && c.nome.toLowerCase().includes('urso')) ||
+      (textoLower.includes('toca') && c.nome.toLowerCase().includes('toca')) ||
+      (textoLower.includes('parque') && c.nome.toLowerCase().includes('parque')) ||
       textoLower.includes(c.nome.toLowerCase().split(' ')[0]) ||
       (c.nome.toLowerCase().includes('parque') && textoLower.includes('parque')) ||
       (c.nome.toLowerCase().includes('villa nobre') && textoLower.includes('villa nobre')) ||
       (c.nome.toLowerCase().includes('sonho real') && textoLower.includes('sonho real'))
     );
+
+    if (!clienteDetectado && (textoLower.includes('urso') || textoLower.includes('toca') || textoLower.includes('parque'))) {
+      clienteDetectado = clientes.find((c) => c.nome.toLowerCase().includes('urso') || c.nome.toLowerCase().includes('parque'));
+    }
 
     if (!clienteDetectado && clientes.length > 0) {
       clienteDetectado = clientes[0];

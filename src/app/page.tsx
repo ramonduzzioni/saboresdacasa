@@ -38,6 +38,7 @@ import {
   deleteProdutoFromSupabase,
   syncClientesFromSupabase,
   saveClienteToSupabase,
+  deleteClienteFromSupabase,
   syncPedidosFromSupabase,
   savePedidoToSupabase,
   deletePedidoFromSupabase,
@@ -811,8 +812,10 @@ export default function Home() {
               saveClienteToSupabase(c);
               carregarDados();
             }}
-            onDeleteCliente={(id) => {
+            onDeleteCliente={async (id) => {
+              setClientes((prev) => prev.filter((c) => c.id !== id));
               deleteCliente(id);
+              await deleteClienteFromSupabase(id);
               carregarDados();
             }}
             onOpenRelatorio={(c) => handleOpenRelatorioCliente(c)}

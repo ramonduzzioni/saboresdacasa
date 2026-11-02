@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Pedido, ItemPedido, Produto } from '@/types';
+import { Pedido, ItemPedido, Produto, Cliente } from '@/types';
 import { getClientes, getPrecoProdutoParaCliente } from '@/lib/storage';
 import { X, Plus, Minus, Trash2, ShoppingBag, PlusCircle, Check, MessageSquare, AlertCircle, Tag } from 'lucide-react';
 
@@ -25,17 +25,81 @@ export function QuickOrderEditorModal({
   const [produtoSelecionadoParaAdicionar, setProdutoSelecionadoParaAdicionar] = useState<string>('');
   const [percentualSinal, setPercentualSinal] = useState<number>(50);
 
+  const isParque =
+    pedido?.tipoCobranca === 'quinzenal' ||
+    pedido?.clienteNome.toLowerCase().includes('urso') ||
+    pedido?.clienteNome.toLowerCase().includes('parque');
+
+  const clienteAtual =
+    getClientes().find(
+      (c) =>
+        c.id === pedido?.clienteId ||
+        c.nome.toLowerCase() === pedido?.clienteNome.toLowerCase() ||
+        (isParque && c.nome.toLowerCase().includes('urso'))
+    ) ||
+    (isParque
+      ? ({
+          id: pedido?.clienteId || 'cli-parque',
+          nome: pedido?.clienteNome,
+          tabelaPreco: 'parque',
+          tipoCobranca: 'quinzenal',
+        } as Cliente)
+      : null);
+
   useEffect(() => {
     if (pedido) {
-      setItens(JSON.parse(JSON.stringify(pedido.itens)));
+      const isPedidoParque =
+        pedido.tipoCobranca === 'quinzenal' ||
+        pedido.clienteNome.toLowerCase().includes('urso') ||
+        pedido.clienteNome.toLowerCase().includes('parque');
+
+      const clienteRef =
+        getClientes().find(
+          (c) =>
+            c.id === pedido.clienteId ||
+            c.nome.toLowerCase() === pedido.clienteNome.toLowerCase() ||
+            (isPedidoParque && c.nome.toLowerCase().includes('urso'))
+        ) ||
+        (isPedidoParque
+          ? ({
+              id: pedido.clienteId || 'cli-parque',
+              nome: pedido.clienteNome,
+              tabelaPreco: 'parque',
+              tipoCobranca: 'quinzenal',
+            } as Cliente)
+          : null);
+
+      const itensClonados: ItemPedido[] = JSON.parse(JSON.stringify(pedido.itens || [])).map(
+        (it: ItemPedido) => {
+          if (isPedidoParque) {
+            const prod = produtosDisponiveis.find(
+              (p) => p.id === it.produtoId || p.nome.toLowerCase() === it.nomeProduto.toLowerCase()
+            );
+            if (prod) {
+              const precoAdequado = getPrecoProdutoParaCliente(prod, clienteRef);
+              if (precoAdequado > 0) {
+                return {
+                  ...it,
+                  precoUnitario: precoAdequado,
+                  subtotal: Number((it.quantidade * precoAdequado).toFixed(2)),
+                };
+              }
+            }
+          }
+          return it;
+        }
+      );
+
+      setItens(itensClonados);
       setObservacoes(pedido.observacoes || '');
-      // Calcula percentual atual do sinal se houver
-      if (pedido.valorTotal > 0) {
+      if (isPedidoParque) {
+        setPercentualSinal(0);
+      } else if (pedido.valorTotal > 0) {
         const perc = Math.round((pedido.valorSinal / pedido.valorTotal) * 100);
         setPercentualSinal(perc || 50);
       }
     }
-  }, [pedido]);
+  }, [pedido, produtosDisponiveis]);
 
   if (!isOpen || !pedido) return null;
 
@@ -73,8 +137,6 @@ export function QuickOrderEditorModal({
     );
   };
 
-  const clienteAtual = getClientes().find((c) => c.id === pedido.clienteId);
-
   const handleRemoverItem = (itemId: string) => {
     setItens((prev) => prev.filter((item) => item.id !== itemId));
   };
@@ -106,15 +168,22 @@ export function QuickOrderEditorModal({
   };
 
   // Totais
-  const novoValorTotal = itens.reduce((acc, i) => acc + (i.subtotal || 0), 0);
-  const novoValorSinal = Number(((novoValorTotal * percentualSinal) / 100).toFixed(2));
-  const novoValorRestante = Number((novoValorTotal - novoValorSinal).toFixed(2));
+  const isQuinzenal =
+    clienteAtual?.tipoCobranca === 'quinzenal' ||
+    clienteAtual?.tabelaPreco === 'parque' ||
+    pedido.clienteNome.toLowerCase().includes('urso') ||
+    pedido.clienteNome.toLowerCase().includes('parque');
+
+  const novoValorTotal = Number(itens.reduce((acc, i) => acc + (i.subtotal || 0), 0).toFixed(2));
+  const novoValorSinal = isQuinzenal ? 0 : Number(((novoValorTotal * percentualSinal) / 100).toFixed(2));
+  const novoValorRestante = isQuinzenal ? novoValorTotal : Number((novoValorTotal - novoValorSinal).toFixed(2));
 
   const handleSalvar = () => {
     const pedidoAtualizado: Pedido = {
       ...pedido,
       itens,
       observacoes,
+      tipoCobranca: isQuinzenal ? 'quinzenal' : pedido.tipoCobranca || 'padrao_50',
       valorTotal: novoValorTotal,
       valorSinal: novoValorSinal,
       valorRestante: novoValorRestante,
@@ -327,26 +396,39 @@ export function QuickOrderEditorModal({
 
         {/* Rodapé Fixo com Resumo Financeiro & Botão de Salvar */}
         <div className="bg-white border-t border-[#E8E2D9] p-4 shrink-0 shadow-lg">
-          <div className="grid grid-cols-3 gap-2 mb-3 text-center">
-            <div className="bg-[#FAF7F2] p-2 rounded-xl border border-[#E8E2D9]">
-              <span className="text-[11px] text-[#8E6554] block font-medium">Novo Total</span>
-              <span className="text-base font-extrabold text-[#2C2420]">
-                R$ {novoValorTotal.toFixed(2)}
-              </span>
+          {isQuinzenal ? (
+            <div className="bg-amber-50 p-3 rounded-xl border border-amber-300 mb-3 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] text-amber-800 block font-bold">Total do Pedido (Tabela Parque):</span>
+                <span className="text-lg font-extrabold text-[#6E473B]">R$ {novoValorTotal.toFixed(2)}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-extrabold text-amber-900 block">🎡 Faturamento Quinzenal</span>
+                <span className="text-[11px] text-amber-700 font-medium">Sem sinal de 50% • Cobrança 15/30</span>
+              </div>
             </div>
-            <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-200">
-              <span className="text-[11px] text-emerald-800 block font-medium">Sinal ({percentualSinal}%)</span>
-              <span className="text-base font-extrabold text-emerald-700">
-                R$ {novoValorSinal.toFixed(2)}
-              </span>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 mb-3 text-center">
+              <div className="bg-[#FAF7F2] p-2 rounded-xl border border-[#E8E2D9]">
+                <span className="text-[11px] text-[#8E6554] block font-medium">Novo Total</span>
+                <span className="text-base font-extrabold text-[#2C2420]">
+                  R$ {novoValorTotal.toFixed(2)}
+                </span>
+              </div>
+              <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-200">
+                <span className="text-[11px] text-emerald-800 block font-medium">Sinal ({percentualSinal}%)</span>
+                <span className="text-base font-extrabold text-emerald-700">
+                  R$ {novoValorSinal.toFixed(2)}
+                </span>
+              </div>
+              <div className="bg-amber-50 p-2 rounded-xl border border-amber-200">
+                <span className="text-[11px] text-amber-900 block font-medium">Restante</span>
+                <span className="text-base font-extrabold text-amber-800">
+                  R$ {novoValorRestante.toFixed(2)}
+                </span>
+              </div>
             </div>
-            <div className="bg-amber-50 p-2 rounded-xl border border-amber-200">
-              <span className="text-[11px] text-amber-900 block font-medium">Restante</span>
-              <span className="text-base font-extrabold text-amber-800">
-                R$ {novoValorRestante.toFixed(2)}
-              </span>
-            </div>
-          </div>
+          )}
 
           <div className="flex gap-2">
             <button

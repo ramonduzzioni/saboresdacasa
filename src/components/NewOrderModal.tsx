@@ -71,8 +71,21 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
   }, [isOpen, clientes]);
 
   const clienteSelecionado = useMemo(() => {
-    return clientes.find((c) => c.id === clienteId) || null;
-  }, [clientes, clienteId]);
+    if (clienteId) {
+      const c = clientes.find((x) => x.id === clienteId);
+      if (c) return c;
+    }
+    if (buscaCliente.trim()) {
+      const termo = buscaCliente.toLowerCase().trim();
+      const c = clientes.find((x) => x.nome.toLowerCase() === termo);
+      if (c) return c;
+      if (termo.includes('urso') || termo.includes('parque')) {
+        const urso = clientes.find((x) => x.nome.toLowerCase().includes('urso') || x.nome.toLowerCase().includes('parque'));
+        if (urso) return urso;
+      }
+    }
+    return null;
+  }, [clientes, clienteId, buscaCliente]);
 
   // Filtra clientes pelo nome digitado na busca
   const clientesFiltrados = useMemo(() => {
@@ -85,6 +98,29 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
         c.endereco.toLowerCase().includes(termo)
     );
   }, [clientes, buscaCliente]);
+
+  // Quando o cliente selecionado mudar (ex: Parque Temático vs Padrão),
+  // atualiza automaticamente os preços unitários e subtotais de todos os itens já adicionados
+  useEffect(() => {
+    if (itens.length === 0) return;
+    setItens((prev) =>
+      prev.map((item) => {
+        const prod = produtos.find(
+          (p) => p.id === item.produtoId || p.nome.toLowerCase() === item.nomeProduto.toLowerCase()
+        );
+        if (!prod) return item;
+        const novoPreco = getPrecoProdutoParaCliente(prod, clienteSelecionado);
+        if (novoPreco > 0 && Math.abs(item.precoUnitario - novoPreco) > 0.001) {
+          return {
+            ...item,
+            precoUnitario: novoPreco,
+            subtotal: Number((item.quantidade * novoPreco).toFixed(2)),
+          };
+        }
+        return item;
+      })
+    );
+  }, [clienteSelecionado, produtos]);
 
   if (!isOpen) return null;
 
@@ -138,7 +174,11 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
 
   const isQuinzenal =
     clienteSelecionado?.tipoCobranca === 'quinzenal' ||
-    clienteSelecionado?.nome.toLowerCase().includes('urso');
+    clienteSelecionado?.tabelaPreco === 'parque' ||
+    clienteSelecionado?.nome.toLowerCase().includes('urso') ||
+    clienteSelecionado?.nome.toLowerCase().includes('parque') ||
+    buscaCliente.toLowerCase().includes('urso') ||
+    buscaCliente.toLowerCase().includes('parque');
 
   const valorTotal = itens.reduce((a, b) => a + b.subtotal, 0);
   const valorSinal = isQuinzenal ? 0 : Number((valorTotal * 0.5).toFixed(2));
@@ -146,7 +186,19 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
 
   const handleCriar = (e: React.FormEvent) => {
     e.preventDefault();
-    const cliente = clientes.find((c) => c.id === clienteId);
+    const cliente =
+      clienteSelecionado ||
+      (buscaCliente.trim()
+        ? ({
+            id: `cli-${Date.now()}`,
+            nome: buscaCliente.trim(),
+            telefone: '',
+            endereco: '',
+            tabelaPreco: isQuinzenal ? 'parque' : 'padrao',
+            tipoCobranca: isQuinzenal ? 'quinzenal' : 'padrao_50',
+          } as Cliente)
+        : null);
+
     if (!cliente || itens.length === 0) {
       alert('Selecione um cliente e adicione pelo menos um item!');
       return;
@@ -467,20 +519,33 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
           </div>
 
           {/* Totais */}
-          <div className="bg-white p-3 rounded-xl border border-[#E8E2D9] flex justify-between items-center text-xs">
-            <div>
-              <span className="text-neutral-500 block">Total do Pedido:</span>
-              <span className="text-base font-extrabold text-[#6E473B]">R$ {valorTotal.toFixed(2)}</span>
+          {isQuinzenal ? (
+            <div className="bg-amber-50 p-3 rounded-xl border border-amber-300 flex justify-between items-center text-xs">
+              <div>
+                <span className="text-amber-800 font-medium block">Total do Pedido (Tabela Parque):</span>
+                <span className="text-base font-extrabold text-[#6E473B]">R$ {valorTotal.toFixed(2)}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-amber-800 font-extrabold block">🎡 Faturamento Quinzenal</span>
+                <span className="text-[11px] text-amber-700 font-medium">Sem sinal de 50% • Cobrança dia 15/30</span>
+              </div>
             </div>
-            <div>
-              <span className="text-emerald-700 block">Sinal 50%:</span>
-              <span className="font-bold text-emerald-700">R$ {valorSinal.toFixed(2)}</span>
+          ) : (
+            <div className="bg-white p-3 rounded-xl border border-[#E8E2D9] flex justify-between items-center text-xs">
+              <div>
+                <span className="text-neutral-500 block">Total do Pedido:</span>
+                <span className="text-base font-extrabold text-[#6E473B]">R$ {valorTotal.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-emerald-700 block">Sinal 50%:</span>
+                <span className="font-bold text-emerald-700">R$ {valorSinal.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-amber-700 block">Saldo na Entrega:</span>
+                <span className="font-bold text-amber-800">R$ {valorRestante.toFixed(2)}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-amber-700 block">Saldo na Entrega:</span>
-              <span className="font-bold text-amber-800">R$ {valorRestante.toFixed(2)}</span>
-            </div>
-          </div>
+          )}
 
           <div className="flex gap-2 pt-2">
             <button

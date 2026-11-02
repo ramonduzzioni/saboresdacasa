@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   CONFIG: 'sabores_config_v1',
   PRODUTOS: 'sabores_produtos_v2',
   CLIENTES: 'sabores_clientes_v1',
+  CLIENTES_EXCLUIDOS: 'sabores_clientes_excluidos_v1',
   PEDIDOS: 'sabores_pedidos_v2',
   MOVIMENTACOES: 'sabores_movimentacoes_v2',
   GOOGLE_USER: 'sabores_google_user_v1',
@@ -73,15 +74,42 @@ export function saveConfig(cfg: ConfiguracaoLoja): void {
 
 // Produtos
 export function getProdutos(): Produto[] {
-  return getLocal<Produto[]>(STORAGE_KEYS.PRODUTOS, PRODUTOS_INICIAIS);
+  const produtos = getLocal<Produto[]>(STORAGE_KEYS.PRODUTOS, PRODUTOS_INICIAIS);
+  // Garante que cada produto tenha o preço do Parque Temático preenchido se não estiver definido
+  return produtos.map((p) => {
+    if (typeof p.precoParque !== 'number') {
+      const inicial = PRODUTOS_INICIAIS.find(
+        (pi) => pi.id === p.id || pi.nome.toLowerCase() === p.nome.toLowerCase()
+      );
+      if (inicial?.precoParque) {
+        return { ...p, precoParque: inicial.precoParque };
+      }
+    }
+    return p;
+  });
 }
 
 export function getPrecoProdutoParaCliente(produto: Produto, cliente?: Cliente | null): number {
-  if (cliente?.tabelaPreco === 'parque' && typeof produto.precoParque === 'number' && produto.precoParque > 0) {
-    return produto.precoParque;
+  if (!produto) return 0;
+  const isParque =
+    cliente?.tabelaPreco === 'parque' ||
+    cliente?.nome?.toLowerCase().includes('urso') ||
+    cliente?.nome?.toLowerCase().includes('parque');
+
+  if (isParque) {
+    if (typeof produto.precoParque === 'number' && produto.precoParque > 0) {
+      return produto.precoParque;
+    }
+    const inicial = PRODUTOS_INICIAIS.find(
+      (p) => p.id === produto.id || p.nome.toLowerCase() === produto.nome.toLowerCase()
+    );
+    if (inicial && typeof inicial.precoParque === 'number' && inicial.precoParque > 0) {
+      return inicial.precoParque;
+    }
   }
   return produto.precoBase;
 }
+
 export function saveProduto(produto: Produto): void {
   const list = getProdutos();
   const idx = list.findIndex((p) => p.id === produto.id);
@@ -92,15 +120,36 @@ export function saveProduto(produto: Produto): void {
   }
   setLocal(STORAGE_KEYS.PRODUTOS, list);
 }
+
 export function deleteProduto(id: string): void {
   const list = getProdutos().filter((p) => p.id !== id);
   setLocal(STORAGE_KEYS.PRODUTOS, list);
 }
 
+// Clientes Excluídos (Lista negra permanente para que clientes deletados nunca ressuscitem)
+export function getClientesExcluidos(): string[] {
+  return getLocal<string[]>(STORAGE_KEYS.CLIENTES_EXCLUIDOS, []);
+}
+
 // Clientes
 export function getClientes(): Cliente[] {
-  return getLocal<Cliente[]>(STORAGE_KEYS.CLIENTES, CLIENTES_INICIAIS);
+  const excluidos = getClientesExcluidos();
+  const raw = getLocal<Cliente[]>(STORAGE_KEYS.CLIENTES, CLIENTES_INICIAIS);
+  const list = raw.filter((c) => !excluidos.includes(c.id));
+
+  return list.map((c) => {
+    if (c.nome.toLowerCase().includes('urso') || c.nome.toLowerCase().includes('parque')) {
+      return {
+        ...c,
+        tabelaPreco: c.tabelaPreco || 'parque',
+        tipoCobranca: c.tipoCobranca || 'quinzenal',
+        isCasaDeEventos: true,
+      };
+    }
+    return c;
+  });
 }
+
 export function saveCliente(cliente: Cliente): void {
   const list = getClientes();
   const idx = list.findIndex((c) => c.id === cliente.id);
@@ -111,7 +160,16 @@ export function saveCliente(cliente: Cliente): void {
   }
   setLocal(STORAGE_KEYS.CLIENTES, list);
 }
+
 export function deleteCliente(id: string): void {
+  // 1. Marca na lista permanente de excluídos
+  const excluidos = getClientesExcluidos();
+  if (!excluidos.includes(id)) {
+    excluidos.push(id);
+    setLocal(STORAGE_KEYS.CLIENTES_EXCLUIDOS, excluidos);
+  }
+
+  // 2. Remove da lista de clientes
   const list = getClientes().filter((c) => c.id !== id);
   setLocal(STORAGE_KEYS.CLIENTES, list);
 }
@@ -119,8 +177,68 @@ export function deleteCliente(id: string): void {
 // Pedidos
 export function getPedidos(): Pedido[] {
   const pedidos = getLocal<Pedido[]>(STORAGE_KEYS.PEDIDOS, PEDIDOS_INICIAIS);
+  const clientes = getClientes();
+  const produtos = getProdutos();
+
+  // Garante que pedidos de Parque Temático / Toca do Urso estejam com os preços corretos e 0% sinal
+  const pedidosProcessados = pedidos.map((p) => {
+    const isParque =
+      p.tipoCobranca === 'quinzenal' ||
+      p.clienteNome.toLowerCase().includes('urso') ||
+      p.clienteNome.toLowerCase().includes('parque');
+
+    if (isParque) {
+      const clienteRef =
+        clientes.find((c) => c.id === p.clienteId) ||
+        clientes.find((c) => c.nome.toLowerCase() === p.clienteNome.toLowerCase()) ||
+        clientes.find((c) => c.nome.toLowerCase().includes('urso')) ||
+        ({
+          id: p.clienteId || 'cli-parque',
+          nome: p.clienteNome,
+          tabelaPreco: 'parque',
+          tipoCobranca: 'quinzenal',
+        } as Cliente);
+
+      let total = 0;
+      let alterou = false;
+      const itensCorrigidos = (p.itens || []).map((item) => {
+        const prod = produtos.find(
+          (x) => x.id === item.produtoId || x.nome.toLowerCase() === item.nomeProduto.toLowerCase()
+        );
+        if (prod) {
+          const precoAdequado = getPrecoProdutoParaCliente(prod, clienteRef);
+          if (precoAdequado > 0 && Math.abs(item.precoUnitario - precoAdequado) > 0.001) {
+            alterou = true;
+            const sub = Number((item.quantidade * precoAdequado).toFixed(2));
+            total += sub;
+            return {
+              ...item,
+              precoUnitario: precoAdequado,
+              subtotal: sub,
+            };
+          }
+        }
+        total += item.subtotal || 0;
+        return item;
+      });
+
+      if (alterou || p.valorSinal > 0 || p.tipoCobranca !== 'quinzenal') {
+        const totalFinal = Number(total.toFixed(2));
+        return {
+          ...p,
+          tipoCobranca: 'quinzenal' as const,
+          itens: itensCorrigidos,
+          valorTotal: totalFinal,
+          valorSinal: 0,
+          valorRestante: totalFinal,
+        };
+      }
+    }
+    return p;
+  });
+
   // Ordena por data mais próxima primeiro
-  return pedidos.sort((a, b) => new Date(a.dataHoraEntrega).getTime() - new Date(b.dataHoraEntrega).getTime());
+  return pedidosProcessados.sort((a, b) => new Date(a.dataHoraEntrega).getTime() - new Date(b.dataHoraEntrega).getTime());
 }
 
 export function savePedido(pedido: Pedido): void {

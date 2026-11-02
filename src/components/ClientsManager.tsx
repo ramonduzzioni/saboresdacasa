@@ -20,6 +20,7 @@ export function ClientsManager({
   const [busca, setBusca] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [clienteEmEdicao, setClienteEmEdicao] = useState<Cliente | null>(null);
+  const [clienteIdConfirmando, setClienteIdConfirmando] = useState<string | null>(null);
 
   // Form State
   const [nome, setNome] = useState('');
@@ -142,17 +143,38 @@ export function ClientsManager({
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Excluir cliente "${cliente.nome}"?`)) {
-                        onDeleteCliente(cliente.id);
-                      }
-                    }}
-                    className="p-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
-                    title="Excluir cliente"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {clienteIdConfirmando === cliente.id ? (
+                    <div className="flex items-center gap-1 bg-rose-50 p-1 rounded-xl border border-rose-200 animate-in fade-in">
+                      <span className="text-[11px] font-bold text-rose-700 px-1">Excluir?</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onDeleteCliente(cliente.id);
+                          setClienteIdConfirmando(null);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs active:scale-95"
+                      >
+                        Sim
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setClienteIdConfirmando(null)}
+                        className="p-1 rounded-lg bg-neutral-200 hover:bg-neutral-300 text-neutral-700"
+                        title="Cancelar"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setClienteIdConfirmando(cliente.id)}
+                      className="p-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
+                      title="Excluir cliente"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -347,6 +369,22 @@ export function ClientsManager({
                   className="w-full bg-white border border-[#D8CABE] rounded-xl p-2.5 text-sm text-[#2C2420] focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
                 />
               </div>
+
+              {clienteEmEdicao && (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteCliente(clienteEmEdicao.id);
+                      setModalAberto(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir este Cliente Definitivamente</span>
+                  </button>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-3 border-t border-[#E8E2D9]">
                 <button
