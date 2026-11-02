@@ -346,16 +346,16 @@ export default function Home() {
           </button>
         </div>
 
-        {/* NAVEGAÇÃO DE ABAS COM CONTROLE DE PERMISSÃO */}
-        <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-[#E8E2D9] mb-6 overflow-x-auto scrollbar-none shadow-xs">
+        {/* NAVEGAÇÃO DE ABAS COM CONTROLE DE PERMISSÃO (OTIMIZADO MOBILE) */}
+        <div className="flex items-center gap-1 p-1 bg-white rounded-2xl border border-[#E8E2D9] mb-6 overflow-x-auto scrollbar-none shadow-xs">
           {[
-            { id: 'pedidos', label: 'Pedidos & Encomendas', icon: ShoppingBag, count: pedidos.length },
-            { id: 'clientes', label: 'Clientes & Rotas', icon: Users, count: clientes.length },
-            { id: 'produtos', label: 'Cardápio / Produtos', icon: UtensilsCrossed, count: produtos.length },
+            { id: 'pedidos', label: 'Pedidos', icon: ShoppingBag, count: pedidos.length },
+            { id: 'clientes', label: 'Clientes', icon: Users, count: clientes.length },
+            { id: 'produtos', label: 'Cardápio', icon: UtensilsCrossed, count: produtos.length },
             ...(isAdmin
               ? [
-                  { id: 'admin', label: 'Financeiro & Gráficos', icon: BarChart3 },
-                  { id: 'equipe', label: 'Equipe & Acessos', icon: ShieldCheck, count: usuariosAutorizados.length },
+                  { id: 'admin', label: 'Caixa', icon: BarChart3 },
+                  { id: 'equipe', label: 'Equipe', icon: ShieldCheck, count: usuariosAutorizados.length },
                 ]
               : []),
           ].map((tab) => {
@@ -365,14 +365,14 @@ export default function Home() {
               <button
                 key={tab.id}
                 onClick={() => setAbaAtiva(tab.id as any)}
-                className={`flex-1 min-w-[120px] py-3 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
+                className={`flex-1 min-w-0 py-2.5 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1 sm:gap-1.5 transition-all whitespace-nowrap ${
                   ativo
                     ? 'bg-[#6E473B] text-white shadow-xs'
                     : 'text-[#6E473B] hover:bg-[#FAF7F2]'
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap">{tab.label}</span>
+                <span>{tab.label}</span>
                 {tab.count !== undefined && (
                   <span
                     className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
