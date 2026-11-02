@@ -132,23 +132,23 @@ export function FinanceDashboard({ movimentacoes, pedidos, onAddMovimentacao }: 
       </div>
 
       {/* Gráfico de Vendas Mensais */}
-      <div className="bg-white p-5 rounded-2xl border border-[#E8E2D9] shadow-xs">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-[#FAF7F2] text-[#6E473B] border border-[#E8E2D9]">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E8E2D9] shadow-xs">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-[#FAF7F2] text-[#6E473B] border border-[#E8E2D9] shrink-0">
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-[#2C2420]">
+              <h3 className="font-bold text-sm sm:text-base text-[#2C2420]">
                 Faturamento Mensal ({anoSelecionado})
               </h3>
-              <p className="text-xs text-[#8E6554]">
+              <p className="text-[11px] text-[#8E6554]">
                 Evolução de vendas e encomendas ao longo do ano
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <select
               value={anoSelecionado}
               onChange={(e) => setAnoSelecionado(Number(e.target.value))}
@@ -160,79 +160,90 @@ export function FinanceDashboard({ movimentacoes, pedidos, onAddMovimentacao }: 
 
             <button
               onClick={() => setModalAberto(true)}
-              className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-[#6E473B] text-white text-xs font-bold hover:bg-[#57372D] transition-all"
+              className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#6E473B] text-white text-xs font-bold hover:bg-[#57372D] active:scale-95 transition-all shrink-0"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Lançar Saída/Entrada</span>
+              <span>Lançar Caixa</span>
             </button>
           </div>
         </div>
 
-        {/* Barras do Gráfico */}
-        <div className="h-56 flex items-end justify-between gap-1 sm:gap-3 pt-6 pb-2 px-1 border-b border-[#E8E2D9]">
+        {/* Barras do Gráfico na Horizontal (Mobile Friendly com limite máximo de largura) */}
+        <div className="space-y-2 pt-1 pb-3">
           {dadosMensais.map((item) => {
             const percVenda = Math.round((item.vendas / maxVenda) * 100);
             return (
-              <div key={item.mes} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                {/* Tooltip no hover */}
-                <span className="text-[10px] font-bold text-[#6E473B] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  R$ {(item.vendas / 1000).toFixed(1)}k
+              <div
+                key={item.mes}
+                className="flex items-center gap-2 sm:gap-3 text-xs hover:bg-[#FAF7F2]/80 p-1 rounded-xl transition-colors"
+              >
+                {/* Nome do Mês */}
+                <span className="w-8 sm:w-10 font-extrabold text-[#6E473B] text-[11px] sm:text-xs uppercase shrink-0">
+                  {item.mes}
                 </span>
 
-                <div
-                  className="w-full max-w-[28px] bg-[#6E473B] hover:bg-[#C68A4C] rounded-t-lg transition-all"
-                  style={{ height: `${percVenda}%` }}
-                ></div>
+                {/* Barra na Horizontal com limite máximo de largura */}
+                <div className="flex-1 max-w-[190px] sm:max-w-xs md:max-w-sm bg-[#FAF7F2] rounded-full h-4 sm:h-5 p-0.5 border border-[#E8E2D9] overflow-hidden flex items-center shadow-inner">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#6E473B] to-[#C68A4C] hover:from-[#57372D] hover:to-[#D99A58] rounded-full transition-all duration-500 min-w-[8px]"
+                    style={{ width: `${percVenda}%` }}
+                  />
+                </div>
 
-                <span className="text-[11px] font-bold text-[#8E6554] uppercase">
-                  {item.mes}
+                {/* Valor Formatado */}
+                <span className="font-extrabold text-[#2C2420] text-[11px] sm:text-xs tabular-nums shrink-0">
+                  R$ {item.vendas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             );
           })}
         </div>
-        <div className="flex justify-between items-center text-xs text-neutral-500 pt-3">
-          <span>Total anual previsto: <strong>R$ 88.500,00</strong></span>
-          <span className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-sm bg-[#6E473B] inline-block"></span>
-            Vendas Mensais
+
+        {/* Rodapé do Gráfico */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-neutral-500 pt-3 border-t border-[#E8E2D9]">
+          <span className="text-[11px] sm:text-xs">
+            Total anual previsto: <strong className="text-[#6E473B] font-extrabold">R$ 88.500,00</strong>
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px] text-[#8E6554]">
+            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-[#6E473B] to-[#C68A4C] inline-block"></span>
+            Vendas Mensais (Barras Proporcionais)
           </span>
         </div>
       </div>
 
       {/* Histórico Recente de Entradas e Saídas */}
-      <div className="bg-white p-5 rounded-2xl border border-[#E8E2D9] shadow-xs">
-        <h3 className="font-bold text-base text-[#2C2420] mb-3">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E8E2D9] shadow-xs">
+        <h3 className="font-bold text-sm sm:text-base text-[#2C2420] mb-3">
           Extrato Recente de Movimentações
         </h3>
 
         <div className="divide-y divide-[#F2EDE4]">
           {movimentacoes.slice(0, 8).map((m) => (
-            <div key={m.id} className="py-3 flex items-center justify-between gap-3 text-xs sm:text-sm">
-              <div className="flex items-center gap-3">
+            <div key={m.id} className="py-2.5 flex items-center justify-between gap-2.5 text-xs sm:text-sm">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${
                     m.tipo === 'entrada'
                       ? 'bg-emerald-100 text-emerald-700'
                       : 'bg-rose-100 text-rose-700'
                   }`}
                 >
                   {m.tipo === 'entrada' ? (
-                    <ArrowUpRight className="w-5 h-5" />
+                    <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   ) : (
-                    <ArrowDownRight className="w-5 h-5" />
+                    <ArrowDownRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   )}
                 </div>
-                <div>
-                  <h4 className="font-bold text-[#2C2420]">{m.descricao}</h4>
-                  <span className="text-[11px] text-neutral-500">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-[#2C2420] truncate text-xs sm:text-sm">{m.descricao}</h4>
+                  <span className="text-[10px] sm:text-[11px] text-neutral-500 block truncate">
                     {new Date(m.data).toLocaleDateString('pt-BR')} • {m.categoria}
                   </span>
                 </div>
               </div>
 
               <div
-                className={`font-extrabold text-sm sm:text-base whitespace-nowrap ${
+                className={`font-black text-xs sm:text-sm whitespace-nowrap shrink-0 ${
                   m.tipo === 'entrada' ? 'text-emerald-700' : 'text-rose-700'
                 }`}
               >
