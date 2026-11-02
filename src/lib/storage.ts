@@ -1,4 +1,4 @@
-import { Cliente, ConfiguracaoLoja, MovimentacaoFinanceira, Pedido, Produto } from '@/types';
+import { Cliente, ConfiguracaoLoja, MovimentacaoFinanceira, Pedido, Produto, SessaoUsuario, UsuarioPermitido } from '@/types';
 import { CLIENTES_INICIAIS, CONFIG_INICIAL, MOVIMENTACOES_INICIAIS, PEDIDOS_INICIAIS, PRODUTOS_INICIAIS } from './initialData';
 
 const STORAGE_KEYS = {
@@ -8,7 +8,28 @@ const STORAGE_KEYS = {
   PEDIDOS: 'sabores_pedidos_v2',
   MOVIMENTACOES: 'sabores_movimentacoes_v2',
   GOOGLE_USER: 'sabores_google_user_v1',
+  USUARIOS_AUTORIZADOS: 'sabores_usuarios_autorizados_v1',
+  AUTH_SESSION: 'sabores_auth_session_v1',
 };
+
+export const USUARIOS_INICIAIS: UsuarioPermitido[] = [
+  {
+    id: 'user-admin-1',
+    email: 'ramonduzzioni@gmail.com',
+    nome: 'Ramon Duzzioni (Proprietário)',
+    papel: 'admin',
+    ativo: true,
+    adicionadoEm: '2026-11-01T00:00:00.000Z',
+  },
+  {
+    id: 'user-admin-2',
+    email: 'saboresdacasa.sp@gmail.com',
+    nome: 'Sabores da Casa (Admin)',
+    papel: 'admin',
+    ativo: true,
+    adicionadoEm: '2026-11-01T00:00:00.000Z',
+  },
+];
 
 function getLocal<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -132,3 +153,34 @@ export function getGoogleUser(): GoogleUser | null {
 export function setGoogleUser(user: GoogleUser | null): void {
   setLocal(STORAGE_KEYS.GOOGLE_USER, user);
 }
+
+// Gestão de Usuários Autorizados (Whitelist de E-mails)
+export function getUsuariosAutorizados(): UsuarioPermitido[] {
+  return getLocal<UsuarioPermitido[]>(STORAGE_KEYS.USUARIOS_AUTORIZADOS, USUARIOS_INICIAIS);
+}
+
+export function saveUsuarioAutorizado(usuario: UsuarioPermitido): void {
+  const list = getUsuariosAutorizados();
+  const idx = list.findIndex((u) => u.email.toLowerCase() === usuario.email.toLowerCase());
+  if (idx >= 0) {
+    list[idx] = usuario;
+  } else {
+    list.push(usuario);
+  }
+  setLocal(STORAGE_KEYS.USUARIOS_AUTORIZADOS, list);
+}
+
+export function deleteUsuarioAutorizado(id: string): void {
+  const list = getUsuariosAutorizados().filter((u) => u.id !== id);
+  setLocal(STORAGE_KEYS.USUARIOS_AUTORIZADOS, list);
+}
+
+// Gestão de Sessão do Usuário
+export function getSessaoAtual(): SessaoUsuario | null {
+  return getLocal<SessaoUsuario | null>(STORAGE_KEYS.AUTH_SESSION, null);
+}
+
+export function setSessaoAtual(sessao: SessaoUsuario | null): void {
+  setLocal(STORAGE_KEYS.AUTH_SESSION, sessao);
+}
+

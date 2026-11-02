@@ -80,3 +80,22 @@ export interface MovimentacaoFinanceira {
   data: string;
   pedidoId?: string;
 }
+
+export type PapelUsuario = 'admin' | 'atendente';
+
+export interface UsuarioPermitido {
+  id: string;
+  email: string;
+  nome: string;
+  papel: PapelUsuario;
+  ativo: boolean;
+  adicionadoEm: string;
+}
+
+export interface SessaoUsuario {
+  email: string;
+  nome: string;
+  avatarUrl: string;
+  papel: PapelUsuario;
+}
+

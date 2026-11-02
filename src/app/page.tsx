@@ -7,6 +7,8 @@ import {
   MovimentacaoFinanceira,
   Pedido,
   Produto,
+  SessaoUsuario,
+  UsuarioPermitido,
 } from '@/types';
 import {
   getConfig,
@@ -22,9 +24,27 @@ import {
   deletePedido,
   getMovimentacoes,
   addMovimentacao,
-  getGoogleUser,
+  getUsuariosAutorizados,
+  saveUsuarioAutorizado,
+  deleteUsuarioAutorizado,
+  getSessaoAtual,
+  setSessaoAtual,
 } from '@/lib/storage';
 
+import { isSupabaseConfigured } from '@/lib/supabase';
+import {
+  syncProdutosFromSupabase,
+  saveProdutoToSupabase,
+  deleteProdutoFromSupabase,
+  syncClientesFromSupabase,
+  saveClienteToSupabase,
+  syncPedidosFromSupabase,
+  savePedidoToSupabase,
+  deletePedidoFromSupabase,
+} from '@/lib/supabaseSync';
+
+import { LoginScreen } from '@/components/LoginScreen';
+import { TeamManager } from '@/components/TeamManager';
 import { TopAgendaWidget } from '@/components/TopAgendaWidget';
 import { QuickOrderEditorModal } from '@/components/QuickOrderEditorModal';
 import { OrderPdfModal } from '@/components/OrderPdfModal';
@@ -53,35 +73,30 @@ import {
   CheckCircle2,
   Search,
   ExternalLink,
+  Database,
+  Crown,
+  ChefHat,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 
 import { CONFIG_INICIAL } from '@/lib/initialData';
-import { GoogleUser } from '@/lib/storage';
-
-import { isSupabaseConfigured } from '@/lib/supabase';
-import {
-  syncProdutosFromSupabase,
-  saveProdutoToSupabase,
-  deleteProdutoFromSupabase,
-  syncClientesFromSupabase,
-  saveClienteToSupabase,
-  syncPedidosFromSupabase,
-  savePedidoToSupabase,
-  deletePedidoFromSupabase,
-} from '@/lib/supabaseSync';
-import { Database } from 'lucide-react';
 
 export default function Home() {
-  // Estado Global
+  // Estado de Autenticação & Sessão
+  const [sessao, setSessao] = useState<SessaoUsuario | null>(null);
+  const [usuariosAutorizados, setUsuariosAutorizados] = useState<UsuarioPermitido[]>([]);
+  const [carregouAuth, setCarregouAuth] = useState(false);
+
+  // Estado Global do Sistema
   const [config, setConfig] = useState<ConfiguracaoLoja>(CONFIG_INICIAL);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoFinanceira[]>([]);
-  const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
 
-  // Aba ativa: pedidos | clientes | produtos | admin
-  const [abaAtiva, setAbaAtiva] = useState<'pedidos' | 'clientes' | 'produtos' | 'admin'>('pedidos');
+  // Aba ativa: pedidos | clientes | produtos | admin | equipe
+  const [abaAtiva, setAbaAtiva] = useState<'pedidos' | 'clientes' | 'produtos' | 'admin' | 'equipe'>('pedidos');
 
   // Modais
   const [pedidoParaEditar, setPedidoParaEditar] = useState<Pedido | null>(null);
@@ -101,7 +116,9 @@ export default function Home() {
     setClientes(getClientes());
     setPedidos(getPedidos());
     setMovimentacoes(getMovimentacoes());
-    setGoogleUser(getGoogleUser());
+    setUsuariosAutorizados(getUsuariosAutorizados());
+    setSessao(getSessaoAtual());
+    setCarregouAuth(true);
 
     // Se o Supabase estiver configurado, sincroniza na nuvem
     if (isSupabaseConfigured) {
@@ -117,6 +134,19 @@ export default function Home() {
     window.addEventListener('sabores-data-updated', handleUpdate);
     return () => window.removeEventListener('sabores-data-updated', handleUpdate);
   }, []);
+
+  // Handlers de Login / Logout
+  const handleLoginSuccess = (novaSessao: SessaoUsuario) => {
+    setSessaoAtual(novaSessao);
+    setSessao(novaSessao);
+  };
+
+  const handleLogout = () => {
+    if (confirm('Deseja realmente sair da sua conta?')) {
+      setSessaoAtual(null);
+      setSessao(null);
+    }
+  };
 
   // Handlers para Pedidos
   const handleSavePedido = (p: Pedido) => {
@@ -141,7 +171,6 @@ export default function Home() {
     };
     savePedido(atualizado);
 
-    // Se quitou ou pagou sinal, registra entrada financeira
     if (novoStatus === 'quitado') {
       addMovimentacao({
         id: `mov-${Date.now()}`,
@@ -156,7 +185,6 @@ export default function Home() {
     carregarDados();
   };
 
-  // WhatsApp disparador
   const handleWhatsApp = (pedido: Pedido) => {
     const limpo = pedido.clienteTelefone.replace(/\D/g, '');
     const dataFmt = new Date(pedido.dataHoraEntrega).toLocaleString('pt-BR', {
@@ -177,6 +205,18 @@ export default function Home() {
     const matchStatus = filtroStatus === 'todos' || p.statusPagamento === filtroStatus;
     return matchBusca && matchStatus;
   });
+
+  // SE NÃO ESTIVER LOGADO: EXIBE A TELA DE LOGIN COM GOOGLE E O LOGO DA CONFEITARIA
+  if (!carregouAuth || !sessao) {
+    return (
+      <LoginScreen
+        usuariosAutorizados={usuariosAutorizados}
+        onLoginSuccess={handleLoginSuccess}
+      />
+    );
+  }
+
+  const isAdmin = sessao.papel === 'admin';
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#2C2420] pb-24 sm:pb-12">
@@ -204,7 +244,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Usuário Google & Botão Config */}
+          {/* Usuário Google Logado, Perfil e Botões */}
           <div className="flex items-center gap-2">
             {isSupabaseConfigured && (
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -213,24 +253,43 @@ export default function Home() {
               </span>
             )}
 
-            {googleUser && (
-              <div className="hidden sm:flex items-center gap-2 bg-[#FAF7F2] border border-[#E8E2D9] py-1 px-2.5 rounded-full">
-                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">
-                  G
-                </div>
-                <div className="text-left text-xs leading-none">
-                  <span className="font-bold text-[#2C2420] block">{googleUser.nome}</span>
-                  <span className="text-[10px] text-neutral-500">{googleUser.email}</span>
-                </div>
+            {/* Identificação da Conta Google com Papel */}
+            <div className="flex items-center gap-2 bg-[#FAF7F2] border border-[#E8E2D9] py-1 px-2.5 rounded-full">
+              <div
+                className={`w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0 ${
+                  isAdmin ? 'bg-amber-600' : 'bg-[#6E473B]'
+                }`}
+              >
+                {isAdmin ? <Crown className="w-3.5 h-3.5 text-amber-200" /> : <ChefHat className="w-3.5 h-3.5" />}
               </div>
+              <div className="text-left leading-none">
+                <span className="font-bold text-xs text-[#2C2420] block max-w-[120px] sm:max-w-none truncate">
+                  {sessao.nome.split(' ')[0]}
+                </span>
+                <span className="text-[10px] font-semibold text-[#8E6554]">
+                  {isAdmin ? 'Proprietária' : 'Atendente'}
+                </span>
+              </div>
+            </div>
+
+            {/* Configurações (Apenas Proprietária) */}
+            {isAdmin && (
+              <button
+                onClick={() => setModalConfigAberto(true)}
+                className="p-2 rounded-xl bg-[#FAF7F2] hover:bg-[#E8E2D9] text-[#6E473B] border border-[#E8E2D9] transition-colors"
+                title="Configurações da Confeitaria e PDF"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
             )}
 
+            {/* Botão Sair */}
             <button
-              onClick={() => setModalConfigAberto(true)}
-              className="p-2.5 rounded-xl bg-[#FAF7F2] hover:bg-[#E8E2D9] text-[#6E473B] border border-[#E8E2D9] transition-colors"
-              title="Configurações da Confeitaria e PDF"
+              onClick={handleLogout}
+              className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors"
+              title="Sair da conta"
             >
-              <Settings className="w-5 h-5" />
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -287,13 +346,18 @@ export default function Home() {
           </button>
         </div>
 
-        {/* NAVEGAÇÃO DE ABAS MOBILE-FRIENDLY */}
+        {/* NAVEGAÇÃO DE ABAS COM CONTROLE DE PERMISSÃO */}
         <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-[#E8E2D9] mb-6 overflow-x-auto scrollbar-none shadow-xs">
           {[
             { id: 'pedidos', label: 'Pedidos & Encomendas', icon: ShoppingBag, count: pedidos.length },
             { id: 'clientes', label: 'Clientes & Rotas', icon: Users, count: clientes.length },
             { id: 'produtos', label: 'Cardápio / Produtos', icon: UtensilsCrossed, count: produtos.length },
-            { id: 'admin', label: 'Financeiro & Gráficos', icon: BarChart3 },
+            ...(isAdmin
+              ? [
+                  { id: 'admin', label: 'Financeiro & Gráficos', icon: BarChart3 },
+                  { id: 'equipe', label: 'Equipe & Acessos', icon: ShieldCheck, count: usuariosAutorizados.length },
+                ]
+              : []),
           ].map((tab) => {
             const Icon = tab.icon;
             const ativo = abaAtiva === tab.id;
@@ -577,13 +641,28 @@ export default function Home() {
           />
         )}
 
-        {/* ABA 4: FINANCEIRO & GRÁFICOS */}
-        {abaAtiva === 'admin' && (
+        {/* ABA 4: FINANCEIRO & GRÁFICOS (APENAS PROPRIETÁRIA) */}
+        {abaAtiva === 'admin' && isAdmin && (
           <FinanceDashboard
             movimentacoes={movimentacoes}
             pedidos={pedidos}
             onAddMovimentacao={(m) => {
               addMovimentacao(m);
+              carregarDados();
+            }}
+          />
+        )}
+
+        {/* ABA 5: EQUIPE & ACESSOS GOOGLE (APENAS PROPRIETÁRIA) */}
+        {abaAtiva === 'equipe' && isAdmin && (
+          <TeamManager
+            usuarios={usuariosAutorizados}
+            onSaveUsuario={(u) => {
+              saveUsuarioAutorizado(u);
+              carregarDados();
+            }}
+            onDeleteUsuario={(id) => {
+              deleteUsuarioAutorizado(id);
               carregarDados();
             }}
           />
@@ -619,7 +698,7 @@ export default function Home() {
         onOrderCreated={(novo) => {
           savePedido(novo);
           carregarDados();
-          setPedidoParaPdf(novo); // Já abre o PDF de imediato para visualização
+          setPedidoParaPdf(novo);
         }}
       />
 
@@ -635,16 +714,18 @@ export default function Home() {
         }}
       />
 
-      {/* MODAL 5: CONFIGURAÇÕES DA LOJA & DADOS DO PDF */}
-      <StoreSettingsModal
-        config={config}
-        isOpen={modalConfigAberto}
-        onClose={() => setModalConfigAberto(false)}
-        onSave={(novaConfig) => {
-          saveConfig(novaConfig);
-          carregarDados();
-        }}
-      />
+      {/* MODAL 5: CONFIGURAÇÕES DA LOJA & DADOS DO PDF (APENAS PROPRIETÁRIA) */}
+      {isAdmin && (
+        <StoreSettingsModal
+          config={config}
+          isOpen={modalConfigAberto}
+          onClose={() => setModalConfigAberto(false)}
+          onSave={(novaConfig) => {
+            saveConfig(novaConfig);
+            carregarDados();
+          }}
+        />
+      )}
 
     </div>
   );
