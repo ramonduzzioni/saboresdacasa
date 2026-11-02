@@ -8,6 +8,7 @@ export interface Produto {
   categoria: CategoriaProduto;
   tipoUnidade: TipoUnidade;
   precoBase: number;
+  precoParque?: number; // Preço diferenciado para Parque Temático / Corporativo
   descricao?: string;
   ativo: boolean;
 }
@@ -20,6 +21,7 @@ export interface Cliente {
   googleMapsUrl?: string;
   observacoes?: string;
   isCasaDeEventos?: boolean;
+  tabelaPreco?: 'padrao' | 'parque'; // 'parque' ativa a tabela com preços diferenciados
 }
 
 export interface ItemPedido {

@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { Cliente, ItemPedido, Pedido, Produto } from '@/types';
-import { X, Plus, Minus, Trash2, Check, Calendar, Clock, MapPin, AlertCircle } from 'lucide-react';
+import { getPrecoProdutoParaCliente } from '@/lib/storage';
+import { X, Plus, Minus, Trash2, Check, Calendar, Clock, MapPin, AlertCircle, Tag } from 'lucide-react';
 
 interface NewOrderModalProps {
   clientes: Cliente[];
@@ -22,11 +23,14 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
 
   if (!isOpen) return null;
 
+  const clienteSelecionado = clientes.find((c) => c.id === clienteId);
+
   const handleAddItem = () => {
     if (!produtoSel) return;
     const p = produtos.find((x) => x.id === produtoSel);
     if (!p) return;
 
+    const preco = getPrecoProdutoParaCliente(p, clienteSelecionado);
     const exist = itens.find((x) => x.produtoId === p.id);
     if (exist) {
       setItens(
@@ -45,8 +49,8 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
           nomeProduto: p.nome,
           quantidade: 1,
           tipoUnidade: p.tipoUnidade,
-          precoUnitario: p.precoBase,
-          subtotal: p.precoBase,
+          precoUnitario: preco,
+          subtotal: preco,
         },
       ]);
     }
@@ -124,11 +128,20 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
             >
               {clientes.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.nome} ({c.telefone})
+                  {c.nome} {c.tabelaPreco === 'parque' ? '🎡 (Tabela Parque)' : ''} ({c.telefone})
                 </option>
               ))}
             </select>
           </div>
+
+          {clienteSelecionado?.tabelaPreco === 'parque' && (
+            <div className="bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-xs text-amber-900 flex items-center gap-2 animate-in fade-in">
+              <span className="text-lg shrink-0">🎡</span>
+              <div className="leading-snug">
+                <strong>Tabela do Parque Temático Ativa:</strong> Os produtos adicionados puxarão automaticamente os preços especiais combinados com o parque.
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -165,11 +178,15 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
                 className="flex-1 bg-white border border-[#D8CABE] rounded-xl p-2.5 text-xs text-[#2C2420] focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
               >
                 <option value="">Selecione um doce ou salgado...</option>
-                {produtos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome} — R$ {p.precoBase.toFixed(2)}/{p.tipoUnidade}
-                  </option>
-                ))}
+                {produtos.map((p) => {
+                  const preco = getPrecoProdutoParaCliente(p, clienteSelecionado);
+                  const isPrecoParque = clienteSelecionado?.tabelaPreco === 'parque' && typeof p.precoParque === 'number' && p.precoParque > 0;
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.nome} — R$ {preco.toFixed(2)}/{p.tipoUnidade} {isPrecoParque ? '🎡 (Parque)' : ''}
+                    </option>
+                  );
+                })}
               </select>
               <button
                 type="button"
@@ -188,9 +205,26 @@ export function NewOrderModal({ clientes, produtos, isOpen, onClose, onSave }: N
               <div key={item.id} className="bg-white p-2.5 rounded-xl border border-[#E8E2D9] flex items-center justify-between">
                 <div>
                   <h4 className="font-bold text-xs text-[#2C2420]">{item.nomeProduto}</h4>
-                  <span className="text-[11px] text-[#8E6554]">
-                    R$ {item.precoUnitario.toFixed(2)} x {item.quantidade} = <strong>R$ {item.subtotal.toFixed(2)}</strong>
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#8E6554]">
+                    <span>R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.precoUnitario}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setItens(
+                          itens.map((x) =>
+                            x.id === item.id
+                              ? { ...x, precoUnitario: val, subtotal: x.quantidade * val }
+                              : x
+                          )
+                        );
+                      }}
+                      className="w-16 bg-[#FAF7F2] border border-[#D8CABE] rounded px-1.5 py-0.5 text-[11px] font-bold text-[#6E473B]"
+                    />
+                    <span>x {item.quantidade} = <strong className="text-[#2C2420]">R$ {item.subtotal.toFixed(2)}</strong></span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button

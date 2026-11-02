@@ -75,6 +75,13 @@ export function saveConfig(cfg: ConfiguracaoLoja): void {
 export function getProdutos(): Produto[] {
   return getLocal<Produto[]>(STORAGE_KEYS.PRODUTOS, PRODUTOS_INICIAIS);
 }
+
+export function getPrecoProdutoParaCliente(produto: Produto, cliente?: Cliente | null): number {
+  if (cliente?.tabelaPreco === 'parque' && typeof produto.precoParque === 'number' && produto.precoParque > 0) {
+    return produto.precoParque;
+  }
+  return produto.precoBase;
+}
 export function saveProduto(produto: Produto): void {
   const list = getProdutos();
   const idx = list.findIndex((p) => p.id === produto.id);

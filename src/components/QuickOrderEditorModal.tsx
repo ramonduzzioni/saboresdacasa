@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Pedido, ItemPedido, Produto } from '@/types';
-import { X, Plus, Minus, Trash2, ShoppingBag, PlusCircle, Check, MessageSquare, AlertCircle } from 'lucide-react';
+import { getClientes, getPrecoProdutoParaCliente } from '@/lib/storage';
+import { X, Plus, Minus, Trash2, ShoppingBag, PlusCircle, Check, MessageSquare, AlertCircle, Tag } from 'lucide-react';
 
 interface QuickOrderEditorModalProps {
   pedido: Pedido | null;
@@ -72,6 +73,8 @@ export function QuickOrderEditorModal({
     );
   };
 
+  const clienteAtual = getClientes().find((c) => c.id === pedido.clienteId);
+
   const handleRemoverItem = (itemId: string) => {
     setItens((prev) => prev.filter((item) => item.id !== itemId));
   };
@@ -80,6 +83,8 @@ export function QuickOrderEditorModal({
     if (!produtoSelecionadoParaAdicionar) return;
     const prod = produtosDisponiveis.find((p) => p.id === produtoSelecionadoParaAdicionar);
     if (!prod) return;
+
+    const preco = getPrecoProdutoParaCliente(prod, clienteAtual);
 
     // Se já tiver no pedido, só incrementa 1
     const existente = itens.find((i) => i.produtoId === prod.id);
@@ -92,8 +97,8 @@ export function QuickOrderEditorModal({
         nomeProduto: prod.nome,
         quantidade: 1,
         tipoUnidade: prod.tipoUnidade,
-        precoUnitario: prod.precoBase,
-        subtotal: prod.precoBase,
+        precoUnitario: preco,
+        subtotal: preco,
       };
       setItens((prev) => [...prev, novoItem]);
     }
@@ -129,6 +134,11 @@ export function QuickOrderEditorModal({
               <span className="text-xs font-bold px-2 py-0.5 rounded bg-[#FAF7F2]/20 text-[#E6C285]">
                 PEDIDO #{pedido.numeroPedido}
               </span>
+              {clienteAtual?.tabelaPreco === 'parque' && (
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400 text-amber-950 flex items-center gap-1 shadow-xs">
+                  🎡 TABELA PARQUE
+                </span>
+              )}
               <span className="text-xs text-[#FAF7F2]/80">Edição Rápida</span>
             </div>
             <h2 className="text-base sm:text-lg font-bold text-white line-clamp-1 mt-0.5">
@@ -166,9 +176,26 @@ export function QuickOrderEditorModal({
                     <span className="font-bold text-sm sm:text-base text-[#2C2420] block">
                       {item.nomeProduto}
                     </span>
-                    <span className="text-xs text-[#8E6554]">
-                      R$ {item.precoUnitario.toFixed(2)} / {item.tipoUnidade}
-                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-xs text-[#8E6554]">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={item.precoUnitario}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setItens((prev) =>
+                            prev.map((it) =>
+                              it.id === item.id
+                                ? { ...it, precoUnitario: val, subtotal: Number((it.quantidade * val).toFixed(2)) }
+                                : it
+                            )
+                          );
+                        }}
+                        className="w-16 bg-[#FAF7F2] border border-[#D8CABE] rounded px-1.5 py-0.5 text-xs font-bold text-[#6E473B]"
+                      />
+                      <span className="text-xs text-[#8E6554]">/{item.tipoUnidade}</span>
+                    </div>
                   </div>
 
                   <div className="text-right">
@@ -262,11 +289,15 @@ export function QuickOrderEditorModal({
               className="flex-1 bg-[#FAF7F2] border border-[#D8CABE] rounded-xl py-2.5 px-3 text-sm text-[#2C2420] font-medium focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
             >
               <option value="">+ Adicionar outro produto do cardápio...</option>
-              {produtosDisponiveis.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome} — R$ {p.precoBase.toFixed(2)}/{p.tipoUnidade}
-                </option>
-              ))}
+              {produtosDisponiveis.map((p) => {
+                const preco = getPrecoProdutoParaCliente(p, clienteAtual);
+                const isParque = clienteAtual?.tabelaPreco === 'parque' && typeof p.precoParque === 'number' && p.precoParque > 0;
+                return (
+                  <option key={p.id} value={p.id}>
+                    {p.nome} — R$ {preco.toFixed(2)}/{p.tipoUnidade} {isParque ? '🎡 (Parque)' : ''}
+                  </option>
+                );
+              })}
             </select>
             <button
               type="button"

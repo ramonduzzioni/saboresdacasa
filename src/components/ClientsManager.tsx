@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Cliente } from '@/types';
-import { Users, Plus, Edit2, Trash2, MapPin, Navigation, Phone, Search, Building2, ExternalLink, Check, X } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, MapPin, Navigation, Phone, Search, Building2, ExternalLink, Check, X, Tag } from 'lucide-react';
 
 interface ClientsManagerProps {
   clientes: Cliente[];
@@ -22,6 +22,7 @@ export function ClientsManager({ clientes, onSaveCliente, onDeleteCliente }: Cli
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [isCasaDeEventos, setIsCasaDeEventos] = useState(false);
+  const [tabelaPreco, setTabelaPreco] = useState<'padrao' | 'parque'>('padrao');
 
   const abrirNovo = () => {
     setClienteEmEdicao(null);
@@ -31,6 +32,7 @@ export function ClientsManager({ clientes, onSaveCliente, onDeleteCliente }: Cli
     setGoogleMapsUrl('');
     setObservacoes('');
     setIsCasaDeEventos(false);
+    setTabelaPreco('padrao');
     setModalAberto(true);
   };
 
@@ -42,6 +44,7 @@ export function ClientsManager({ clientes, onSaveCliente, onDeleteCliente }: Cli
     setGoogleMapsUrl(c.googleMapsUrl || '');
     setObservacoes(c.observacoes || '');
     setIsCasaDeEventos(!!c.isCasaDeEventos);
+    setTabelaPreco(c.tabelaPreco || 'padrao');
     setModalAberto(true);
   };
 
@@ -57,6 +60,7 @@ export function ClientsManager({ clientes, onSaveCliente, onDeleteCliente }: Cli
       googleMapsUrl: googleMapsUrl.trim(),
       observacoes: observacoes.trim(),
       isCasaDeEventos,
+      tabelaPreco,
     };
 
     onSaveCliente(cliente);
@@ -117,6 +121,11 @@ export function ClientsManager({ clientes, onSaveCliente, onDeleteCliente }: Cli
                     <Phone className="w-3.5 h-3.5 text-emerald-600" />
                     <span>{cliente.telefone}</span>
                   </div>
+                  {cliente.tabelaPreco === 'parque' && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 mt-1">
+                      🎡 Tabela Especial: Parque Temático
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -272,6 +281,42 @@ export function ClientsManager({ clientes, onSaveCliente, onDeleteCliente }: Cli
                   placeholder="Ex: https://maps.app.goo.gl/... ou https://maps.google.com/?q=..."
                   className="w-full bg-white border border-emerald-300 rounded-xl p-2.5 text-sm text-[#2C2420] focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
                 />
+              </div>
+
+              {/* TABELA DE PREÇO DIFERENCIADA */}
+              <div className="bg-amber-50/80 p-3.5 rounded-xl border border-amber-200">
+                <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-amber-700" />
+                  Tabela de Preço do Cliente
+                </label>
+                <div className="grid grid-cols-2 gap-2 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setTabelaPreco('padrao')}
+                    className={`flex items-center justify-center gap-2 p-2 rounded-lg border text-xs font-bold transition-all ${
+                      tabelaPreco === 'padrao'
+                        ? 'bg-white border-[#6E473B] text-[#6E473B] shadow-xs ring-2 ring-[#6E473B]/20'
+                        : 'bg-[#FAF7F2] border-amber-200 text-amber-900/70'
+                    }`}
+                  >
+                    <span>Tabela Padrão</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTabelaPreco('parque')}
+                    className={`flex items-center justify-center gap-2 p-2 rounded-lg border text-xs font-bold transition-all ${
+                      tabelaPreco === 'parque'
+                        ? 'bg-white border-amber-600 text-amber-900 shadow-xs ring-2 ring-amber-500/20'
+                        : 'bg-[#FAF7F2] border-amber-200 text-amber-900/70'
+                    }`}
+                  >
+                    <span>🎡 Parque Temático</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-amber-800 mt-1.5 leading-snug">
+                  Ao marcar como Parque Temático, os pedidos desse cliente puxarão automaticamente os preços diferenciados configurados no Cardápio!
+                </p>
               </div>
 
               <div>

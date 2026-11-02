@@ -21,6 +21,7 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
   const [categoria, setCategoria] = useState<CategoriaProduto>('salgados');
   const [tipoUnidade, setTipoUnidade] = useState<TipoUnidade>('unidade');
   const [precoBase, setPrecoBase] = useState('');
+  const [precoParque, setPrecoParque] = useState('');
   const [descricao, setDescricao] = useState('');
 
   const abrirNovo = () => {
@@ -29,6 +30,7 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
     setCategoria('salgados');
     setTipoUnidade('unidade');
     setPrecoBase('');
+    setPrecoParque('');
     setDescricao('');
     setModalAberto(true);
   };
@@ -39,6 +41,7 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
     setCategoria(p.categoria);
     setTipoUnidade(p.tipoUnidade);
     setPrecoBase(p.precoBase.toString());
+    setPrecoParque(p.precoParque ? p.precoParque.toString() : '');
     setDescricao(p.descricao || '');
     setModalAberto(true);
   };
@@ -53,6 +56,7 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
       categoria,
       tipoUnidade,
       precoBase: parseFloat(precoBase),
+      precoParque: precoParque ? parseFloat(precoParque) : undefined,
       descricao: descricao.trim(),
       ativo: true,
     };
@@ -148,12 +152,26 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
               )}
             </div>
 
-            <div className="flex items-baseline justify-between pt-2 border-t border-[#F2EDE4]">
-              <span className="text-xs text-[#8E6554]">Preço de tabela:</span>
-              <span className="text-lg font-extrabold text-[#6E473B]">
-                R$ {prod.precoBase.toFixed(2)}{' '}
-                <span className="text-xs font-normal text-[#8E6554]">/{prod.tipoUnidade}</span>
-              </span>
+            <div className="pt-2 border-t border-[#F2EDE4] space-y-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs text-[#8E6554]">Preço Padrão:</span>
+                <span className="text-base font-extrabold text-[#6E473B]">
+                  R$ {prod.precoBase.toFixed(2)}{' '}
+                  <span className="text-[11px] font-normal text-[#8E6554]">/{prod.tipoUnidade}</span>
+                </span>
+              </div>
+
+              {typeof prod.precoParque === 'number' && prod.precoParque > 0 && (
+                <div className="flex items-baseline justify-between bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                  <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1">
+                    🎡 Parque Temático:
+                  </span>
+                  <span className="text-sm font-black text-amber-800">
+                    R$ {prod.precoParque.toFixed(2)}{' '}
+                    <span className="text-[10px] font-normal text-amber-900">/{prod.tipoUnidade}</span>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -223,19 +241,39 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#6E473B] mb-1">
-                  Preço Base (R$) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={precoBase}
-                  onChange={(e) => setPrecoBase(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full bg-white border border-[#D8CABE] rounded-xl p-2.5 text-sm text-[#2C2420] font-bold focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
-                />
+              {/* Preços: Padrão e Especial Parque */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#6E473B] mb-1">
+                    Preço Padrão (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={precoBase}
+                    onChange={(e) => setPrecoBase(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-white border border-[#D8CABE] rounded-xl p-2.5 text-sm text-[#2C2420] font-bold focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center gap-1">
+                    <span>🎡 Preço Parque Temático (R$)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={precoParque}
+                    onChange={(e) => setPrecoParque(e.target.value)}
+                    placeholder="Ex: 0.85 (opcional)"
+                    className="w-full bg-amber-50/70 border border-amber-300 rounded-xl p-2.5 text-sm text-[#2C2420] font-bold focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                  <span className="text-[10px] text-[#8E6554] block mt-0.5">
+                    Se vazio, usa o preço padrão
+                  </span>
+                </div>
               </div>
 
               <div>

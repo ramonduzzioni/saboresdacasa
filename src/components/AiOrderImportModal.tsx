@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Cliente, ItemPedido, Pedido, Produto } from '@/types';
+import { getPrecoProdutoParaCliente } from '@/lib/storage';
 import { Sparkles, MessageSquare, Check, X, AlertCircle, ArrowRight } from 'lucide-react';
 
 interface AiOrderImportModalProps {
@@ -52,6 +53,7 @@ export function AiOrderImportModal({
       // Detecta cliente
       let clienteDetectado = clientes.find((c) =>
         textoLower.includes(c.nome.toLowerCase().split(' ')[0]) ||
+        (c.nome.toLowerCase().includes('parque') && textoLower.includes('parque')) ||
         (c.nome.toLowerCase().includes('villa nobre') && textoLower.includes('villa nobre')) ||
         (c.nome.toLowerCase().includes('morgana') && textoLower.includes('morgana')) ||
         (c.nome.toLowerCase().includes('sonho real') && textoLower.includes('sonho real'))
@@ -84,14 +86,16 @@ export function AiOrderImportModal({
             if (digitoMatch && digitoMatch[1]) qtd = parseInt(digitoMatch[1]);
           }
 
+          const preco = getPrecoProdutoParaCliente(prod, clienteDetectado);
+
           itensDetectados.push({
             id: `item-ai-${Date.now()}-${prod.id}`,
             produtoId: prod.id,
             nomeProduto: prod.nome,
             quantidade: qtd,
             tipoUnidade: prod.tipoUnidade,
-            precoUnitario: prod.precoBase,
-            subtotal: Number((qtd * prod.precoBase).toFixed(2)),
+            precoUnitario: preco,
+            subtotal: Number((qtd * preco).toFixed(2)),
             observacao: 'Extraído automaticamente do WhatsApp',
           });
         }
@@ -100,14 +104,15 @@ export function AiOrderImportModal({
       // Se nenhum item foi mapeado especificamente, usa o primeiro produto como exemplo
       if (itensDetectados.length === 0 && produtos.length > 0) {
         const p = produtos[0];
+        const preco = getPrecoProdutoParaCliente(p, clienteDetectado);
         itensDetectados.push({
           id: `item-ai-${Date.now()}`,
           produtoId: p.id,
           nomeProduto: p.nome,
           quantidade: 2,
           tipoUnidade: p.tipoUnidade,
-          precoUnitario: p.precoBase,
-          subtotal: p.precoBase * 2,
+          precoUnitario: preco,
+          subtotal: Number((2 * preco).toFixed(2)),
         });
       }
 
