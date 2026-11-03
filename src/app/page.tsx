@@ -86,6 +86,7 @@ import {
 
 import { CONFIG_INICIAL } from '@/lib/initialData';
 import { getGoogleCalendarLink } from '@/lib/calendar';
+import { enviarMensagemWhatsApp } from '@/lib/whatsapp';
 
 export default function Home() {
   // Estado de Autenticação & Sessão
@@ -256,37 +257,12 @@ export default function Home() {
     carregarDados();
   };
 
-  const handleCompartilharWhatsApp = (pedido?: Pedido) => {
-    const isMobile =
-      typeof navigator !== 'undefined' &&
-      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // Abre direto a tela nativa do WhatsApp ("Enviar para...") permitindo escolher o Grupo ou Contato sem texto automático
-      window.location.href = 'whatsapp://send';
-    } else {
-      window.open('https://api.whatsapp.com/send', '_blank');
-    }
+  const handleCompartilharWhatsApp = (pedido: Pedido) => {
+    enviarMensagemWhatsApp(pedido);
   };
 
   const handleWhatsApp = (pedido: Pedido) => {
-    const isParque =
-      pedido.tipoCobranca === 'quinzenal' ||
-      pedido.clienteNome.toLowerCase().includes('urso') ||
-      pedido.clienteNome.toLowerCase().includes('parque');
-
-    if (isParque) {
-      handleCompartilharWhatsApp(pedido);
-      return;
-    }
-
-    const limpo = pedido.clienteTelefone.replace(/\D/g, '');
-    if (limpo) {
-      // Abre direto a conversa do cliente no WhatsApp sem texto automático
-      window.open(`https://wa.me/55${limpo}`, '_blank');
-    } else {
-      handleCompartilharWhatsApp(pedido);
-    }
+    enviarMensagemWhatsApp(pedido);
   };
 
   const handleOpenRelatorioCliente = (c?: Cliente) => {

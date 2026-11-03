@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Pedido, ConfiguracaoLoja } from '@/types';
 import { Calendar, Clock, MapPin, ShoppingBag, Edit3, MessageCircle, FileText, CheckCircle2, CalendarPlus, Users } from 'lucide-react';
 import { getGoogleCalendarLink } from '@/lib/calendar';
+import { enviarMensagemWhatsApp } from '@/lib/whatsapp';
 
 interface TopAgendaWidgetProps {
   pedidos: Pedido[];
@@ -52,35 +53,12 @@ export function TopAgendaWidget({ pedidos, config, onEditQuick, onOpenPdf }: Top
     }
   };
 
-  const handleCompartilharWhatsApp = (pedido?: Pedido) => {
-    const isMobile =
-      typeof navigator !== 'undefined' &&
-      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      window.location.href = 'whatsapp://send';
-    } else {
-      window.open('https://api.whatsapp.com/send', '_blank');
-    }
+  const handleCompartilharWhatsApp = (pedido: Pedido) => {
+    enviarMensagemWhatsApp(pedido);
   };
 
   const handleWhatsApp = (pedido: Pedido) => {
-    const isParque =
-      pedido.tipoCobranca === 'quinzenal' ||
-      pedido.clienteNome.toLowerCase().includes('urso') ||
-      pedido.clienteNome.toLowerCase().includes('parque');
-
-    if (isParque) {
-      handleCompartilharWhatsApp(pedido);
-      return;
-    }
-
-    const limpo = pedido.clienteTelefone.replace(/\D/g, '');
-    if (limpo) {
-      window.open(`https://wa.me/55${limpo}`, '_blank');
-    } else {
-      handleCompartilharWhatsApp(pedido);
-    }
+    enviarMensagemWhatsApp(pedido);
   };
 
   return (

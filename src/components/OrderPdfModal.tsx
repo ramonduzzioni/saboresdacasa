@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Pedido, ConfiguracaoLoja } from '@/types';
 import { LOGO_DARK_BASE64 } from '@/lib/logoBase64';
+import { enviarMensagemWhatsApp } from '@/lib/whatsapp';
 import { X, Download, Share2, Printer, Phone, MapPin } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -72,6 +73,11 @@ export function OrderPdfModal({ pedido, config, isOpen, onClose }: OrderPdfModal
   };
 
   const handleCompartilharWhatsApp = () => {
+    if (isQuinzenal || pedido.clienteNome.toLowerCase().includes('urso') || pedido.clienteNome.toLowerCase().includes('parque')) {
+      enviarMensagemWhatsApp(pedido);
+      return;
+    }
+
     const limpo = pedido.clienteTelefone.replace(/\D/g, '');
 
     const cobrancaTxt = isQuinzenal
