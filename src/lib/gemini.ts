@@ -37,7 +37,7 @@ export interface GeminiParsedOrder {
   tipoEntrega: 'entrega' | 'retirada';
   tipoCobranca?: 'padrao_50' | 'quinzenal';
   itens: {
-    produtoId: string;
+    produtoId?: string | null;
     nomeProduto: string;
     quantidade: number;
     observacao?: string;
@@ -56,7 +56,7 @@ export async function parseWhatsAppOrderWithGemini(
   }
 
   const prompt = `Você é o assistente inteligente da confeitaria "Sabores da Casa" (doces e salgados artesanais).
-Sua missão é ler uma mensagem de WhatsApp copiada de um cliente (que pode ser informal, com gírias, erros de digitação ou áudio transcrito) e extrair os dados estruturados do pedido com máxima precisão.
+Sua missão é ler uma mensagem de WhatsApp de um cliente e extrair rigorosamente TODOS os itens pedidos, sem cortar, resumir ou esquecer nenhum item.
 
 CARDÁPIO ATUAL DE PRODUTOS DISPONÍVEIS:
 ${produtos.map((p) => `- ID: "${p.id}", Nome: "${p.nome}", Unidade: "${p.tipoUnidade}", Preço Padrão: R$ ${p.precoBase.toFixed(2)}${p.precoParque ? `, Preço Parque: R$ ${p.precoParque.toFixed(2)}` : ''}`).join('\n')}
@@ -72,14 +72,13 @@ MENSAGEM DO WHATSAPP A SER ANALISADA:
 ${textoWhatsApp}
 """
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Identifique o cliente: Se mencionar o nome de um cliente cadastrado (ou Parque Temático, Toca do Urso, Villa Nobre, etc.), use o ID correspondente.
-2. IMPORTANTE SOBRE FORMA DE PAGAMENTO: O cliente principal "Parque Temático Toca do Urso" (ou "A Toca do Urso") paga QUINZENALMENTE (tipoCobranca = "quinzenal"). NUNCA cobre sinal de 50% da Toca do Urso! Para os demais clientes comuns, tipoCobranca = "padrao_50".
-3. Mapeie cada item pedido para o produto correspondente do cardápio pelo ID correto.
-4. Extraia as quantidades exatas por unidade.
-5. Extraia data e hora de entrega no formato ISO 8601 (ex: "2026-11-03T18:00:00.000Z"). Se não houver horário, assuma 17:00.
-6. Identifique se é "entrega" ou "retirada" (padrão é entrega).
-7. Extraia observações (ex: "fritar bem quentinho", "portaria lateral", "massa sem cebola").
+REGRAS CRÍTICAS DE EXTRAÇÃO:
+1. EXTRAIA TODOS OS ITENS: Se a mensagem listar 6, 8 ou 10 sabores/produtos diferentes, você DEVE retornar exatamente todos os itens no array "itens". NUNCA limite a 3 ou 4 itens!
+2. PRODUTOS NÃO CADASTRADOS: Se o cliente pedir um doce, salgado ou bolo que ainda não está no cardápio acima (ex: Casadinhos, Cajuzinhos, Napolitano, docinho personalizado, torta especial), NUNCA O DESCARTEM! Retorne o objeto com "produtoId": null e "nomeProduto" com o nome exato do produto solicitado.
+3. VINCULAÇÃO DE PRODUTOS CADASTRADOS: Se o item coincidir com um produto do cardápio cadastrado (ex: "Coxinha Tradicional", "Brigadeiro"), use o "produtoId" dele.
+4. OBSERVAÇÕES ESPECÍFICAS: Se o cliente colocar observações em um item (ex: "sem MMs", "fritar bem dourado"), extraia no campo "observacao" daquele item. Não insira textos automáticos como "extraído por IA".
+5. CLIENTE E PAGAMENTO: Identifique o cliente. Se for "Parque Temático Toca do Urso" (ou "Toca do Urso"), tipoCobranca = "quinzenal" (faturamento quinzenal sem sinal). Para clientes comuns, tipoCobranca = "padrao_50".
+6. DATA E HORA DE ENTREGA: Formato ISO 8601 (ano 2026). Se não tiver horário, assuma 17:00.
 
 RESPONDA EXCLUSIVAMENTE COM UM OBJETO JSON VÁLIDO no seguinte formato (sem markdown, sem texto antes ou depois):
 {
@@ -92,17 +91,17 @@ RESPONDA EXCLUSIVAMENTE COM UM OBJETO JSON VÁLIDO no seguinte formato (sem mark
   "tipoCobranca": "quinzenal" ou "padrao_50",
   "itens": [
     {
-      "produtoId": "ID do produto do cardápio",
+      "produtoId": "ID do produto do cardápio ou null se não cadastrado",
       "nomeProduto": "Nome do produto",
-      "quantidade": 100,
+      "quantidade": 45,
       "observacao": "detalhe se houver"
     }
   ],
-  "observacoes": "observações gerais da entrega/preparo"
+  "observacoes": "observações gerais da entrega/preparo (ou vazio)"
 }`;
 
   // Tenta modelos rápidos do Gemini com fallback
-  const models = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+  const models = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
 
   for (const model of models) {
     try {

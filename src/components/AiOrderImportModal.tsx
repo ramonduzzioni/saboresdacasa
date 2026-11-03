@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Cliente, ItemPedido, Pedido, Produto } from '@/types';
+import { Cliente, ItemPedido, Pedido, Produto, TipoUnidade } from '@/types';
 import { getPrecoProdutoParaCliente } from '@/lib/storage';
 import { parseWhatsAppOrderWithGemini } from '@/lib/gemini';
 import { Sparkles, MessageSquare, Check, X, AlertCircle, ArrowRight, Loader2, Bot, Calendar, MapPin, Tag } from 'lucide-react';
@@ -86,23 +86,55 @@ export function AiOrderImportModal({
 
       // Monta os itens mapeados com preços oficiais (respeitando a tabela do cliente, ex: Parque)
       const itens: ItemPedido[] = [];
+      const isParqueCliente =
+        cliente?.tabelaPreco === 'parque' ||
+        cliente?.nome.toLowerCase().includes('urso') ||
+        cliente?.nome.toLowerCase().includes('parque');
+
       for (const itemGemini of geminiResult.itens) {
-        const prod = produtos.find((p) => p.id === itemGemini.produtoId) ||
-          produtos.find((p) => p.nome.toLowerCase().includes(itemGemini.nomeProduto.toLowerCase()));
+        if (!itemGemini.nomeProduto && !itemGemini.produtoId) continue;
+
+        const nomeItemLower = (itemGemini.nomeProduto || '').toLowerCase().trim();
+        const prod =
+          produtos.find((p) => p.id === itemGemini.produtoId) ||
+          produtos.find((p) => {
+            const pNome = p.nome.toLowerCase().trim();
+            return (
+              pNome === nomeItemLower ||
+              pNome.includes(nomeItemLower) ||
+              nomeItemLower.includes(pNome) ||
+              (pNome.split(' ')[0].length > 3 && nomeItemLower.includes(pNome.split(' ')[0]))
+            );
+          });
+
+        let preco = 0;
+        let tipoUnidade: TipoUnidade = 'unidade';
+        let nomeFinal = itemGemini.nomeProduto;
+        let produtoId = itemGemini.produtoId || `prod-extra-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
         if (prod) {
-          const preco = getPrecoProdutoParaCliente(prod, cliente);
-          itens.push({
-            id: `item-gemini-${Date.now()}-${prod.id}`,
-            produtoId: prod.id,
-            nomeProduto: prod.nome,
-            quantidade: itemGemini.quantidade,
-            tipoUnidade: prod.tipoUnidade,
-            precoUnitario: preco,
-            subtotal: Number((itemGemini.quantidade * preco).toFixed(2)),
-            observacao: itemGemini.observacao || '',
-          });
+          preco = getPrecoProdutoParaCliente(prod, cliente);
+          tipoUnidade = prod.tipoUnidade;
+          nomeFinal = prod.nome;
+          produtoId = prod.id;
+        } else {
+          // PRODUTO NÃO CADASTRADO NO CARDÁPIO AINDA:
+          // NUNCA descarta! Mantém no pedido com o preço adequado da tabela
+          preco = isParqueCliente ? 0.85 : 0.95;
         }
+
+        const qtd = Number(itemGemini.quantidade) || 1;
+
+        itens.push({
+          id: `item-gemini-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          produtoId,
+          nomeProduto: nomeFinal,
+          quantidade: qtd,
+          tipoUnidade,
+          precoUnitario: preco,
+          subtotal: Number((qtd * preco).toFixed(2)),
+          observacao: itemGemini.observacao || '',
+        });
       }
 
       const isQuinzenal =
@@ -173,38 +205,120 @@ export function AiOrderImportModal({
       clienteDetectado = clientes[0];
     }
 
+    const isParqueCliente =
+      clienteDetectado?.tabelaPreco === 'parque' ||
+      clienteDetectado?.nome.toLowerCase().includes('urso') ||
+      textoLower.includes('urso');
+
     const itensDetectados: ItemPedido[] = [];
 
-    produtos.forEach((prod) => {
-      const nomeLower = prod.nome.toLowerCase();
-      const keywords = nomeLower.replace('cento de ', '').replace(' (kg)', '').replace(' (unidade)', '').split(' ');
-      const match = keywords.some((k) => k.length > 3 && textoLower.includes(k));
+    // 1. Processa linha por linha para capturar absolutamente TODOS os itens
+    const linhas = textoWhats.split('\n').map((l) => l.trim()).filter(Boolean);
 
+    linhas.forEach((linha) => {
+      const lLower = linha.toLowerCase();
+      // Ignora saudações ou linhas informativas
+      if (
+        lLower.startsWith('oi') ||
+        lLower.startsWith('olá') ||
+        lLower.startsWith('ola') ||
+        lLower.startsWith('boa tarde') ||
+        lLower.startsWith('bom dia') ||
+        lLower.startsWith('boa noite') ||
+        lLower.startsWith('total') ||
+        lLower.startsWith('entregar') ||
+        lLower.startsWith('obs') ||
+        lLower.startsWith('segue') ||
+        lLower.startsWith('pedido') ||
+        lLower.startsWith('data')
+      ) {
+        return;
+      }
+
+      // Procura formato: "45 casadinhos tradicional", "• 45x cajuzinhos", "60 brigadeiros", etc.
+      const match = linha.match(/^[-•*]?\s*(\d+([.,]\d+)?)\s*(x|centos?|unidades?|kg|kilos?)?\s*(de)?\s*(.+)/i);
       if (match) {
-        const regex = new RegExp(`(\\d+([.,]\\d+)?)\\s*(centos?|unidades?|kg|kilos?)?\\s*(de)?\\s*.*${keywords[0]}`, 'i');
-        const m = textoWhats.match(regex);
-        let qtd = 1;
-        if (m && m[1]) {
-          qtd = parseFloat(m[1].replace(',', '.'));
-        } else {
-          const digitoMatch = textoWhats.match(new RegExp(`(\\d+)\\s*.*${keywords[0]}`, 'i'));
-          if (digitoMatch && digitoMatch[1]) qtd = parseInt(digitoMatch[1]);
+        const qtd = parseFloat(match[1].replace(',', '.')) || 1;
+        const textoDesc = match[5].trim();
+
+        // Extrai observação entre parênteses se houver (ex: "sem MMs")
+        let nomeLimpo = textoDesc;
+        let obsItem = '';
+        const matchObs = textoDesc.match(/\((.*?)\)/);
+        if (matchObs) {
+          obsItem = matchObs[1].trim();
+          nomeLimpo = textoDesc.replace(/\(.*?\)/, '').trim();
         }
 
-        const preco = getPrecoProdutoParaCliente(prod, clienteDetectado);
+        const nomeItemLower = nomeLimpo.toLowerCase();
+        const prod = produtos.find(
+          (p) =>
+            p.nome.toLowerCase() === nomeItemLower ||
+            nomeItemLower.includes(p.nome.toLowerCase()) ||
+            p.nome.toLowerCase().includes(nomeItemLower) ||
+            (p.nome.toLowerCase().split(' ')[0].length > 3 && nomeItemLower.includes(p.nome.toLowerCase().split(' ')[0]))
+        );
+
+        let preco = 0;
+        let tipoUnidade: TipoUnidade = 'unidade';
+        let nomeFinal = nomeLimpo;
+        let produtoId = `prod-extra-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+        if (prod) {
+          preco = getPrecoProdutoParaCliente(prod, clienteDetectado);
+          tipoUnidade = prod.tipoUnidade;
+          nomeFinal = prod.nome;
+          produtoId = prod.id;
+        } else {
+          preco = isParqueCliente ? 0.85 : 0.95;
+        }
 
         itensDetectados.push({
-          id: `item-ai-${Date.now()}-${prod.id}`,
-          produtoId: prod.id,
-          nomeProduto: prod.nome,
+          id: `item-ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          produtoId,
+          nomeProduto: nomeFinal,
           quantidade: qtd,
-          tipoUnidade: prod.tipoUnidade,
+          tipoUnidade,
           precoUnitario: preco,
           subtotal: Number((qtd * preco).toFixed(2)),
-          observacao: '',
+          observacao: obsItem,
         });
       }
     });
+
+    // 2. Se a mensagem não estava dividida por linhas, faz varredura por produtos do cardápio
+    if (itensDetectados.length === 0) {
+      produtos.forEach((prod) => {
+        const nomeLower = prod.nome.toLowerCase();
+        const keywords = nomeLower.replace('cento de ', '').replace(' (kg)', '').replace(' (unidade)', '').split(' ');
+        const match = keywords.some((k) => k.length > 3 && textoLower.includes(k));
+
+        if (match) {
+          const regex = new RegExp(`(\\d+([.,]\\d+)?)\\s*(centos?|unidades?|kg|kilos?)?\\s*(de)?\\s*.*${keywords[0]}`, 'i');
+          const m = textoWhats.match(regex);
+          let qtd = 1;
+          if (m && m[1]) {
+            qtd = parseFloat(m[1].replace(',', '.'));
+          } else {
+            const digitoMatch = textoWhats.match(new RegExp(`(\\d+)\\s*.*${keywords[0]}`, 'i'));
+            if (digitoMatch && digitoMatch[1]) qtd = parseInt(digitoMatch[1]);
+          }
+
+          const preco = getPrecoProdutoParaCliente(prod, clienteDetectado);
+
+          itensDetectados.push({
+            id: `item-ai-${Date.now()}-${prod.id}`,
+            produtoId: prod.id,
+            nomeProduto: prod.nome,
+            quantidade: qtd,
+            tipoUnidade: prod.tipoUnidade,
+            precoUnitario: preco,
+            subtotal: Number((qtd * preco).toFixed(2)),
+            observacao: '',
+          });
+        }
+      });
+    }
 
     const isQuinzenal =
       clienteDetectado?.tipoCobranca === 'quinzenal' ||
