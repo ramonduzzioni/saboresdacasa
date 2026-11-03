@@ -850,14 +850,24 @@ export default function Home() {
         {abaAtiva === 'produtos' && (
           <ProductsManager
             produtos={produtos}
-            onSaveProduto={(p) => {
+            onSaveProduto={async (p) => {
+              setProdutos((prev) => {
+                const idx = prev.findIndex((item) => item.id === p.id);
+                if (idx >= 0) {
+                  const arr = [...prev];
+                  arr[idx] = p;
+                  return arr;
+                }
+                return [p, ...prev];
+              });
               saveProduto(p);
-              saveProdutoToSupabase(p);
+              await saveProdutoToSupabase(p);
               carregarDados();
             }}
-            onDeleteProduto={(id) => {
+            onDeleteProduto={async (id) => {
+              setProdutos((prev) => prev.filter((p) => p.id !== id));
               deleteProduto(id);
-              deleteProdutoFromSupabase(id);
+              await deleteProdutoFromSupabase(id);
               carregarDados();
             }}
           />

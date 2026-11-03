@@ -74,7 +74,10 @@ export function saveConfig(cfg: ConfiguracaoLoja): void {
 
 // Produtos
 export function getProdutos(): Produto[] {
-  const produtos = getLocal<Produto[]>(STORAGE_KEYS.PRODUTOS, PRODUTOS_INICIAIS);
+  const excluidos = getLocal<string[]>('sabores_produtos_excluidos_v1', []);
+  const produtos = getLocal<Produto[]>(STORAGE_KEYS.PRODUTOS, PRODUTOS_INICIAIS).filter(
+    (p) => !excluidos.includes(p.id)
+  );
   // Garante que cada produto tenha o preço do Parque Temático preenchido se não estiver definido
   return produtos.map((p) => {
     if (typeof p.precoParque !== 'number') {
@@ -122,6 +125,11 @@ export function saveProduto(produto: Produto): void {
 }
 
 export function deleteProduto(id: string): void {
+  const excluidos = getLocal<string[]>('sabores_produtos_excluidos_v1', []);
+  if (!excluidos.includes(id)) {
+    excluidos.push(id);
+    setLocal('sabores_produtos_excluidos_v1', excluidos);
+  }
   const list = getProdutos().filter((p) => p.id !== id);
   setLocal(STORAGE_KEYS.PRODUTOS, list);
 }

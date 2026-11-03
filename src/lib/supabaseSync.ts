@@ -11,6 +11,9 @@ export async function syncProdutosFromSupabase(fallback: Produto[]): Promise<Pro
       return fallback;
     }
     return data.map((d: any) => {
+      const local = fallback.find(
+        (p) => p.id === d.id || p.nome.toLowerCase() === d.nome.toLowerCase()
+      );
       const inicial = PRODUTOS_INICIAIS.find(
         (p) => p.id === d.id || p.nome.toLowerCase() === d.nome.toLowerCase()
       );
@@ -18,6 +21,8 @@ export async function syncProdutosFromSupabase(fallback: Produto[]): Promise<Pro
       const precoParque =
         typeof d.preco_parque === 'number'
           ? Number(d.preco_parque)
+          : typeof local?.precoParque === 'number'
+          ? local.precoParque
           : inicial?.precoParque;
 
       return {
@@ -41,7 +46,7 @@ export async function syncProdutosFromSupabase(fallback: Produto[]): Promise<Pro
 export async function saveProdutoToSupabase(produto: Produto): Promise<void> {
   if (!supabase || !isSupabaseConfigured) return;
   try {
-    await supabase.from('produtos').upsert({
+    const { error } = await supabase.from('produtos').upsert({
       id: produto.id,
       nome: produto.nome,
       categoria: produto.categoria,
@@ -51,6 +56,19 @@ export async function saveProdutoToSupabase(produto: Produto): Promise<void> {
       descricao: produto.descricao,
       ativo: produto.ativo,
     });
+
+    if (error) {
+      console.warn('Aviso ao salvar com preco_parque no Supabase, tentando sem a coluna:', error.message);
+      await supabase.from('produtos').upsert({
+        id: produto.id,
+        nome: produto.nome,
+        categoria: produto.categoria,
+        tipo_unidade: produto.tipoUnidade,
+        preco_base: produto.precoBase,
+        descricao: produto.descricao,
+        ativo: produto.ativo,
+      });
+    }
   } catch (err) {
     console.warn('Erro ao salvar produto no Supabase:', err);
   }

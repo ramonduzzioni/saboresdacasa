@@ -15,6 +15,7 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
   const [busca, setBusca] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null);
+  const [produtoIdConfirmando, setProdutoIdConfirmando] = useState<string | null>(null);
 
   // Form State
   const [nome, setNome] = useState('');
@@ -40,23 +41,37 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
     setNome(p.nome);
     setCategoria(p.categoria);
     setTipoUnidade(p.tipoUnidade);
-    setPrecoBase(p.precoBase.toString());
-    setPrecoParque(p.precoParque ? p.precoParque.toString() : '');
+    setPrecoBase(typeof p.precoBase === 'number' ? p.precoBase.toString() : '');
+    setPrecoParque(typeof p.precoParque === 'number' && p.precoParque > 0 ? p.precoParque.toString() : '');
     setDescricao(p.descricao || '');
     setModalAberto(true);
   };
 
+  const parseValor = (val: string): number => {
+    if (!val) return 0;
+    const limpo = val.toString().replace(',', '.').trim();
+    const n = parseFloat(limpo);
+    return isNaN(n) ? 0 : n;
+  };
+
   const handleSalvar = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome.trim() || !precoBase) return;
+    const precoBaseNum = parseValor(precoBase);
+    if (!nome.trim() || precoBaseNum <= 0) {
+      alert('Informe o nome do produto e um preço padrão válido!');
+      return;
+    }
+
+    const precoParqueTrim = precoParque ? precoParque.toString().trim() : '';
+    const precoParqueNum = precoParqueTrim !== '' ? parseValor(precoParqueTrim) : undefined;
 
     const produto: Produto = {
       id: produtoEmEdicao ? produtoEmEdicao.id : `prod-${Date.now()}`,
       nome: nome.trim(),
       categoria,
       tipoUnidade,
-      precoBase: parseFloat(precoBase),
-      precoParque: precoParque ? parseFloat(precoParque) : undefined,
+      precoBase: precoBaseNum,
+      precoParque: precoParqueNum !== undefined && precoParqueNum > 0 ? precoParqueNum : undefined,
       descricao: descricao.trim(),
       ativo: true,
     };
@@ -133,15 +148,36 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Excluir "${prod.nome}"?`)) onDeleteProduto(prod.id);
-                    }}
-                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
-                    title="Excluir produto"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {produtoIdConfirmando === prod.id ? (
+                    <div className="flex items-center gap-1 bg-rose-50 p-0.5 rounded-lg border border-rose-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onDeleteProduto(prod.id);
+                          setProdutoIdConfirmando(null);
+                        }}
+                        className="px-1.5 py-0.5 bg-rose-600 text-white text-[10px] font-bold rounded"
+                      >
+                        Sim
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProdutoIdConfirmando(null)}
+                        className="p-0.5 text-neutral-500 hover:text-neutral-800"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setProdutoIdConfirmando(prod.id)}
+                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
+                      title="Excluir produto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -161,7 +197,7 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
                 </span>
               </div>
 
-              {typeof prod.precoParque === 'number' && prod.precoParque > 0 && (
+              {typeof prod.precoParque === 'number' && prod.precoParque > 0 ? (
                 <div className="flex items-baseline justify-between bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
                   <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1">
                     🎡 Parque Temático:
@@ -171,6 +207,15 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
                     <span className="text-[10px] font-normal text-amber-900">/{prod.tipoUnidade}</span>
                   </span>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => abrirEdicao(prod)}
+                  className="w-full text-left flex items-center justify-between text-[11px] text-amber-900 bg-amber-50/60 hover:bg-amber-100/70 px-2 py-1 rounded-lg border border-dashed border-amber-300 transition-colors"
+                >
+                  <span className="font-semibold">🎡 + Preço Parque Temático</span>
+                  <span className="text-[10px] font-bold underline">Definir</span>
+                </button>
               )}
             </div>
           </div>
@@ -248,30 +293,42 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
                     Preço Padrão (R$) *
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     required
                     value={precoBase}
                     onChange={(e) => setPrecoBase(e.target.value)}
-                    placeholder="0.00"
+                    placeholder="Ex: 0,95 ou 85,00"
                     className="w-full bg-white border border-[#D8CABE] rounded-xl p-2.5 text-sm text-[#2C2420] font-bold focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
                   />
+                  <span className="text-[10px] text-[#8E6554] block mt-0.5">
+                    Aceita vírgula ou ponto (ex: 0,95)
+                  </span>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center gap-1">
-                    <span>🎡 Preço Parque Temático (R$)</span>
+                  <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1">🎡 Preço Parque Temático (R$)</span>
+                    {precoParque && (
+                      <button
+                        type="button"
+                        onClick={() => setPrecoParque('')}
+                        className="text-[10px] text-rose-600 hover:underline font-bold"
+                      >
+                        Limpar
+                      </button>
+                    )}
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={precoParque}
                     onChange={(e) => setPrecoParque(e.target.value)}
-                    placeholder="Ex: 0.85 (opcional)"
+                    placeholder="Ex: 0,85 ou 78,00"
                     className="w-full bg-amber-50/70 border border-amber-300 rounded-xl p-2.5 text-sm text-[#2C2420] font-bold focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
                   />
                   <span className="text-[10px] text-[#8E6554] block mt-0.5">
-                    Se vazio, usa o preço padrão
+                    Se preenchido, será usado na Toca do Urso
                   </span>
                 </div>
               </div>
@@ -288,6 +345,22 @@ export function ProductsManager({ produtos, onSaveProduto, onDeleteProduto }: Pr
                   className="w-full bg-white border border-[#D8CABE] rounded-xl p-2.5 text-sm text-[#2C2420] focus:ring-2 focus:ring-[#6E473B] focus:outline-hidden"
                 />
               </div>
+
+              {produtoEmEdicao && (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteProduto(produtoEmEdicao.id);
+                      setModalAberto(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir este Produto Definitivamente</span>
+                  </button>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-3 border-t border-[#E8E2D9]">
                 <button
