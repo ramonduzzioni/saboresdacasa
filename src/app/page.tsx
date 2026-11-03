@@ -256,26 +256,37 @@ export default function Home() {
     carregarDados();
   };
 
+  const handleCompartilharWhatsApp = (pedido?: Pedido) => {
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // Abre direto a tela nativa do WhatsApp ("Enviar para...") permitindo escolher o Grupo ou Contato sem texto automático
+      window.location.href = 'whatsapp://send';
+    } else {
+      window.open('https://api.whatsapp.com/send', '_blank');
+    }
+  };
+
   const handleWhatsApp = (pedido: Pedido) => {
-    const limpo = pedido.clienteTelefone.replace(/\D/g, '');
-    const dataFmt = new Date(pedido.dataHoraEntrega).toLocaleString('pt-BR', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    });
-    const isQuinzenal =
+    const isParque =
       pedido.tipoCobranca === 'quinzenal' ||
-      pedido.valorSinal === 0 ||
-      pedido.clienteNome.toLowerCase().includes('toca do urso') ||
-      pedido.clienteNome.toLowerCase().includes('urso');
+      pedido.clienteNome.toLowerCase().includes('urso') ||
+      pedido.clienteNome.toLowerCase().includes('parque');
 
-    const cobrancaTxt = isQuinzenal
-      ? `*Total:* R$ ${pedido.valorTotal.toFixed(2)}\n*Condição:* Faturamento Quinzenal (Sem sinal prévio)`
-      : `*Total:* R$ ${pedido.valorTotal.toFixed(2)}\n*Sinal:* R$ ${pedido.valorSinal.toFixed(2)}\n*Saldo na entrega:* R$ ${pedido.valorRestante.toFixed(2)}`;
+    if (isParque) {
+      handleCompartilharWhatsApp(pedido);
+      return;
+    }
 
-    const texto = encodeURIComponent(
-      `Olá ${pedido.clienteNome}! Aqui é da *${config.nome}*.\n\nPassando para confirmar seu pedido *#${pedido.numeroPedido}* agendado para *${dataFmt}*.\n\n${cobrancaTxt}\n\nQualquer ajuste de quantidades é só nos avisar!`
-    );
-    window.open(`https://wa.me/55${limpo}?text=${texto}`, '_blank');
+    const limpo = pedido.clienteTelefone.replace(/\D/g, '');
+    if (limpo) {
+      // Abre direto a conversa do cliente no WhatsApp sem texto automático
+      window.open(`https://wa.me/55${limpo}`, '_blank');
+    } else {
+      handleCompartilharWhatsApp(pedido);
+    }
   };
 
   const handleOpenRelatorioCliente = (c?: Cliente) => {
@@ -753,14 +764,27 @@ export default function Home() {
                             <span>Alterar Qtds</span>
                           </button>
 
-                          {/* WHATSAPP */}
-                          <button
-                            onClick={() => handleWhatsApp(pedido)}
-                            className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors active:scale-95"
-                            title="Chamar no WhatsApp"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                          </button>
+                          {/* WHATSAPP / GRUPO */}
+                          {pedido.tipoCobranca === 'quinzenal' ||
+                          pedido.clienteNome.toLowerCase().includes('urso') ||
+                          pedido.clienteNome.toLowerCase().includes('parque') ? (
+                            <button
+                              onClick={() => handleCompartilharWhatsApp(pedido)}
+                              className="flex items-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all active:scale-95 shadow-xs"
+                              title="Abrir WhatsApp para escolher o Grupo da Toca do Urso"
+                            >
+                              <Users className="w-4 h-4" />
+                              <span>Grupo Whats</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleWhatsApp(pedido)}
+                              className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors active:scale-95"
+                              title="Abrir no WhatsApp"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          )}
 
                           {/* GOOGLE AGENDA */}
                           <a

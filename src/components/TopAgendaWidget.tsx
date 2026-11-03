@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Pedido, ConfiguracaoLoja } from '@/types';
-import { Calendar, Clock, MapPin, ShoppingBag, Edit3, MessageCircle, FileText, CheckCircle2, CalendarPlus } from 'lucide-react';
+import { Calendar, Clock, MapPin, ShoppingBag, Edit3, MessageCircle, FileText, CheckCircle2, CalendarPlus, Users } from 'lucide-react';
 import { getGoogleCalendarLink } from '@/lib/calendar';
 
 interface TopAgendaWidgetProps {
@@ -52,13 +52,35 @@ export function TopAgendaWidget({ pedidos, config, onEditQuick, onOpenPdf }: Top
     }
   };
 
+  const handleCompartilharWhatsApp = (pedido?: Pedido) => {
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      window.location.href = 'whatsapp://send';
+    } else {
+      window.open('https://api.whatsapp.com/send', '_blank');
+    }
+  };
+
   const handleWhatsApp = (pedido: Pedido) => {
+    const isParque =
+      pedido.tipoCobranca === 'quinzenal' ||
+      pedido.clienteNome.toLowerCase().includes('urso') ||
+      pedido.clienteNome.toLowerCase().includes('parque');
+
+    if (isParque) {
+      handleCompartilharWhatsApp(pedido);
+      return;
+    }
+
     const limpo = pedido.clienteTelefone.replace(/\D/g, '');
-    const dataFmt = formatarDataHora(pedido.dataHoraEntrega);
-    const texto = encodeURIComponent(
-      `Olá ${pedido.clienteNome}! Aqui é da *${config.nome}*.\n\nPassando para confirmar seu pedido *#${pedido.numeroPedido}* agendado para *${dataFmt}*.\n\n*Total:* R$ ${pedido.valorTotal.toFixed(2)}\n*Sinal:* R$ ${pedido.valorSinal.toFixed(2)} (${pedido.statusPagamento === 'quitado' ? 'Totalmente Quitado' : 'Sinal Confirmado'})\n*Saldo restante:* R$ ${pedido.valorRestante.toFixed(2)}\n\nQualquer ajuste, estamos à disposição!`
-    );
-    window.open(`https://wa.me/55${limpo}?text=${texto}`, '_blank');
+    if (limpo) {
+      window.open(`https://wa.me/55${limpo}`, '_blank');
+    } else {
+      handleCompartilharWhatsApp(pedido);
+    }
   };
 
   return (
@@ -169,15 +191,28 @@ export function TopAgendaWidget({ pedidos, config, onEditQuick, onOpenPdf }: Top
                     <span>Qtds</span>
                   </button>
 
-                  {/* WhatsApp */}
-                  <button
-                    onClick={() => handleWhatsApp(pedido)}
-                    className="flex items-center justify-center gap-1 py-2 px-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors active:scale-95"
-                    title="Enviar confirmação no WhatsApp"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>Whats</span>
-                  </button>
+                  {/* WhatsApp / Grupo */}
+                  {pedido.tipoCobranca === 'quinzenal' ||
+                  pedido.clienteNome.toLowerCase().includes('urso') ||
+                  pedido.clienteNome.toLowerCase().includes('parque') ? (
+                    <button
+                      onClick={() => handleCompartilharWhatsApp(pedido)}
+                      className="flex items-center justify-center gap-1 py-2 px-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors active:scale-95 shadow-xs"
+                      title="Abrir WhatsApp para escolher o Grupo da Toca do Urso"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Grupo</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleWhatsApp(pedido)}
+                      className="flex items-center justify-center gap-1 py-2 px-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors active:scale-95"
+                      title="Abrir no WhatsApp"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Whats</span>
+                    </button>
+                  )}
 
                   {/* PDF */}
                   <button
