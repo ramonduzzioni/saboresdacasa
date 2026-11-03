@@ -100,7 +100,7 @@ export function AiOrderImportModal({
             tipoUnidade: prod.tipoUnidade,
             precoUnitario: preco,
             subtotal: Number((itemGemini.quantidade * preco).toFixed(2)),
-            observacao: itemGemini.observacao || 'Extraído via IA do Gemini',
+            observacao: itemGemini.observacao || '',
           });
         }
       }
@@ -115,7 +115,7 @@ export function AiOrderImportModal({
         itensDetectados: itens.length > 0 ? itens : fallbackItens(cliente),
         dataDetectada: geminiResult.dataHoraEntrega || getDataAmanha(),
         tipoEntrega: geminiResult.tipoEntrega || 'entrega',
-        observacoes: geminiResult.observacoes || 'Pedido estruturado com sucesso pelo Gemini.',
+        observacoes: geminiResult.observacoes || '',
         foiGemini: true,
         isQuinzenal,
       });
@@ -201,7 +201,7 @@ export function AiOrderImportModal({
           tipoUnidade: prod.tipoUnidade,
           precoUnitario: preco,
           subtotal: Number((qtd * preco).toFixed(2)),
-          observacao: 'Extraído automaticamente do WhatsApp',
+          observacao: '',
         });
       }
     });
@@ -216,7 +216,7 @@ export function AiOrderImportModal({
       itensDetectados: itensDetectados.length > 0 ? itensDetectados : fallbackItens(clienteDetectado),
       dataDetectada: getDataAmanha(),
       tipoEntrega: textoLower.includes('retirar') || textoLower.includes('balcão') ? 'retirada' : 'entrega',
-      observacoes: 'Pedido extraído do WhatsApp',
+      observacoes: '',
       foiGemini: false,
       isQuinzenal,
     });

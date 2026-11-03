@@ -14,13 +14,34 @@ export function formatarMensagemWhatsAppParque(pedido: Pedido): string {
   const horaFmt = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   const itensTexto = (pedido.itens || [])
-    .map((item) => `• ${item.quantidade}x ${item.nomeProduto}${item.observacao ? ` (${item.observacao})` : ''}`)
+    .map((item) => {
+      // Remove anotações técnicas de IA mantendo observações reais como "(sem MMs)"
+      let obs = (item.observacao || '')
+        .replace(/\(?\s*extra[íi]do via ia do gemini\s*\)?/gi, '')
+        .replace(/\(?\s*extra[íi]do via ia\s*\)?/gi, '')
+        .replace(/\(?\s*extra[íi]do automaticamente do whatsapp\s*\)?/gi, '')
+        .replace(/\(?\s*gerado pelo gemini\s*\)?/gi, '')
+        .replace(/\(?\s*gerado pela ia\s*\)?/gi, '')
+        .replace(/\(?\s*gemini\s*\)?/gi, '')
+        .trim();
+
+      // Remove parênteses vazios residuais se houver
+      obs = obs.replace(/^\(+|\)+$/g, '').trim();
+
+      return `• ${item.quantidade}x ${item.nomeProduto}${obs ? ` (${obs})` : ''}`;
+    })
     .join('\n');
 
   let msg = `*Pedido #${pedido.numeroPedido}*\n*Entrega:* ${dataFmt} às ${horaFmt}\n\n*Itens:*\n${itensTexto}`;
 
-  if (pedido.observacoes && pedido.observacoes.trim()) {
-    msg += `\n\n*Obs:* ${pedido.observacoes.trim()}`;
+  const obsGeral = (pedido.observacoes || '')
+    .replace(/\(?\s*pedido estruturado com sucesso pelo gemini\.?\s*\)?/gi, '')
+    .replace(/\(?\s*pedido extra[íi]do do whatsapp\.?\s*\)?/gi, '')
+    .replace(/\(?\s*detectado via intelig[êe]ncia de padr[õo]es de texto\.?\s*\)?/gi, '')
+    .trim();
+
+  if (obsGeral) {
+    msg += `\n\n*Obs:* ${obsGeral}`;
   }
 
   return msg;
