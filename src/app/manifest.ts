@@ -2,11 +2,14 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: '/',
     name: 'Sabores da Casa | Doces & Salgados Artesanais',
     short_name: 'Sabores da Casa',
     description: 'Gestão de Pedidos, Produção, Cardápio e Entregas - Sabores da Casa',
     start_url: '/',
+    scope: '/',
     display: 'standalone',
+    orientation: 'portrait-primary',
     background_color: '#FAF7F2',
     theme_color: '#6E473B',
     icons: [

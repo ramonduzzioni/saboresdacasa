@@ -135,3 +135,193 @@ RESPONDA EXCLUSIVAMENTE COM UM OBJETO JSON VÁLIDO no seguinte formato (sem mark
 
   throw new Error('Não foi possível obter resposta dos modelos Gemini.');
 }
+
+export interface ItemAjusteIa {
+  termo: string;
+  quantidade: number;
+  itemId?: string;
+  nomeProdutoItem?: string;
+  acaoSugerida?: 'diminuir' | 'aumentar' | 'definir';
+}
+
+export function matchItemPedido(termo: string, itens: ItemPedido[]): ItemPedido | null {
+  const t = termo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (!t) return null;
+
+  // 1. Exato
+  let found = itens.find((it) => {
+    const n = it.nomeProduto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    return n === t;
+  });
+  if (found) return found;
+
+  // 2. Contém
+  found = itens.find((it) => {
+    const n = it.nomeProduto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    return n.includes(t) || t.includes(n);
+  });
+  if (found) return found;
+
+  // 3. Raiz da palavra (primeiras 4 letras)
+  const raiz = t.length >= 4 ? t.slice(0, 4) : t;
+  found = itens.find((it) => {
+    const n = it.nomeProduto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    return n.includes(raiz);
+  });
+  if (found) return found;
+
+  return null;
+}
+
+export function parseWhatsAppAdjustmentLocal(
+  textoWhatsApp: string,
+  itensAtuais: ItemPedido[],
+  modoPadrao: 'diminuir' | 'aumentar' | 'definir' = 'diminuir'
+): ItemAjusteIa[] {
+  const linhas = textoWhatsApp.split('\n').map((l) => l.trim()).filter(Boolean);
+  const resultados: ItemAjusteIa[] = [];
+
+  for (const linha of linhas) {
+    const lLower = linha.toLowerCase();
+    if (
+      lLower.startsWith('oi') ||
+      lLower.startsWith('olá') ||
+      lLower.startsWith('ola') ||
+      lLower.startsWith('bom dia') ||
+      lLower.startsWith('boa tarde') ||
+      lLower.startsWith('boa noite') ||
+      lLower.startsWith('segue') ||
+      lLower.startsWith('total') ||
+      lLower.startsWith('obs') ||
+      (lLower.startsWith('sobraram') && !linha.match(/\d+/))
+    ) {
+      continue;
+    }
+
+    // Formato 1: "Brigadeiro 63", "Brigadeiro: 63", "Brigadeiro - 63"
+    let m = linha.match(/^[-•*]?\s*([a-zA-ZÀ-ÿ\s]+?)[\s:\-=]+(\d+([.,]\d+)?)$/i);
+    let termo = '';
+    let qtd = 0;
+
+    if (m && m[1] && m[2]) {
+      termo = m[1].trim();
+      qtd = parseFloat(m[2].replace(',', '.'));
+    } else {
+      // Formato 2: "63 Brigadeiro", "63x Brigadeiro", "63 de Brigadeiro"
+      m = linha.match(/^[-•*]?\s*(\d+([.,]\d+)?)\s*(x|unidades?|un|centos?)?\s*(de)?\s*([a-zA-ZÀ-ÿ\s]+)$/i);
+      if (m && m[1] && m[5]) {
+        qtd = parseFloat(m[1].replace(',', '.'));
+        termo = m[5].trim();
+      }
+    }
+
+    if (termo && qtd > 0) {
+      const itemCorrespondente = matchItemPedido(termo, itensAtuais);
+      resultados.push({
+        termo,
+        quantidade: qtd,
+        itemId: itemCorrespondente?.id,
+        nomeProdutoItem: itemCorrespondente?.nomeProduto,
+        acaoSugerida: modoPadrao,
+      });
+    }
+  }
+
+  return resultados;
+}
+
+export async function parseWhatsAppAdjustmentWithGemini(
+  textoWhatsApp: string,
+  itensAtuais: ItemPedido[],
+  modoPadrao: 'diminuir' | 'aumentar' | 'definir' = 'diminuir'
+): Promise<ItemAjusteIa[]> {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    // Se não tiver chave, usa o motor local que funciona perfeitamente
+    return parseWhatsAppAdjustmentLocal(textoWhatsApp, itensAtuais, modoPadrao);
+  }
+
+  const prompt = `Você é o assistente inteligente da confeitaria "Sabores da Casa".
+Sua tarefa é ler uma mensagem de WhatsApp com alterações/ajustes de quantidades de um pedido e mapear cada item alterado para os itens atuais do pedido.
+
+ITENS ATUAIS DO PEDIDO:
+${itensAtuais.map((it) => `- ID: "${it.id}", Nome: "${it.nomeProduto}", Quantidade Atual: ${it.quantidade}`).join('\n')}
+
+MENSAGEM DE ALTERAÇÃO RECEBIDA:
+"""
+${textoWhatsApp}
+"""
+
+INSTRUÇÕES:
+1. Extraia cada item e a respectiva quantidade numérica mencionada na mensagem (ex: "Brigadeiro 63" -> termo: "Brigadeiro", quantidade: 63).
+2. Tente associar o termo a um item atual do pedido pelo ID ("itemId") e nome ("nomeProdutoItem").
+   - Exemplo: "Caju" ou "Cajuzinho" associa a "Cajuzinhos tradicional"
+   - Exemplo: "Colorido" associa a "Docinho Colorido" ou similar
+   - Exemplo: "Napolitano" associa a "Napolitano tradicional"
+   - Exemplo: "Beijinho" associa a "Beijinhos tradicional"
+3. Se o texto indicar expressamente uma ação (ex: "diminuir", "sobraram", "tirar", "menos"), defina "acaoSugerida": "diminuir". Se disser "aumentar" ou "adicionar", defina "aumentar". Se não especificar, use "${modoPadrao}".
+4. Retorne EXCLUSIVAMENTE um array JSON de objetos:
+[
+  {
+    "termo": "Nome mencionado",
+    "quantidade": 63,
+    "itemId": "ID do item atual correspondente ou null se não encontrado",
+    "nomeProdutoItem": "Nome do item no pedido ou null",
+    "acaoSugerida": "${modoPadrao}"
+  }
+]`;
+
+  const models = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: 'application/json',
+            },
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const parsed = JSON.parse(rawText.replace(/```json/gi, '').replace(/```/g, '').trim());
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((item) => {
+              // Se a IA não tiver setado itemId, tenta no parser local de correspondência
+              let itemId = item.itemId;
+              let nomeProdutoItem = item.nomeProdutoItem;
+              if (!itemId && item.termo) {
+                const match = matchItemPedido(item.termo, itensAtuais);
+                if (match) {
+                  itemId = match.id;
+                  nomeProdutoItem = match.nomeProduto;
+                }
+              }
+              return {
+                termo: item.termo,
+                quantidade: Number(item.quantidade) || 0,
+                itemId,
+                nomeProdutoItem,
+                acaoSugerida: item.acaoSugerida || modoPadrao,
+              };
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`Tentativa de ajuste com ${model} falhou:`, err);
+    }
+  }
+
+  // Fallback seguro para o motor local
+  return parseWhatsAppAdjustmentLocal(textoWhatsApp, itensAtuais, modoPadrao);
+}

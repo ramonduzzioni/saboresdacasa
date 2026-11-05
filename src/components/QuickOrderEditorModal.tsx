@@ -3,7 +3,24 @@
 import React, { useState, useEffect } from 'react';
 import { Pedido, ItemPedido, Produto, Cliente } from '@/types';
 import { getClientes, getPrecoProdutoParaCliente } from '@/lib/storage';
-import { X, Plus, Minus, Trash2, ShoppingBag, PlusCircle, Check, MessageSquare, AlertCircle, Tag } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingBag,
+  PlusCircle,
+  Check,
+  MessageSquare,
+  AlertCircle,
+  Tag,
+  Sparkles,
+  Wand2,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+import { parseWhatsAppAdjustmentWithGemini, ItemAjusteIa } from '@/lib/gemini';
 
 interface QuickOrderEditorModalProps {
   pedido: Pedido | null;
@@ -24,6 +41,20 @@ export function QuickOrderEditorModal({
   const [observacoes, setObservacoes] = useState('');
   const [produtoSelecionadoParaAdicionar, setProdutoSelecionadoParaAdicionar] = useState<string>('');
   const [percentualSinal, setPercentualSinal] = useState<number>(50);
+
+  // IA Ajuste via WhatsApp (especial Toca do Urso / Parque Temático)
+  const [mostrarIaAjuste, setMostrarIaAjuste] = useState(false);
+  const [modoAjuste, setModoAjuste] = useState<'diminuir' | 'aumentar' | 'definir'>('diminuir');
+  const [textoAjusteWhats, setTextoAjusteWhats] = useState('');
+  const [processandoIa, setProcessandoIa] = useState(false);
+  const [ajustesSugeridos, setAjustesSugeridos] = useState<{
+    itemId: string;
+    nomeProduto: string;
+    qtdAtual: number;
+    delta: number;
+    novaQtd: number;
+    termo: string;
+  }[] | null>(null);
 
   const isParque =
     pedido?.tipoCobranca === 'quinzenal' ||
@@ -100,6 +131,82 @@ export function QuickOrderEditorModal({
       }
     }
   }, [pedido, produtosDisponiveis]);
+
+  useEffect(() => {
+    if (isParque) {
+      setMostrarIaAjuste(true);
+    }
+  }, [isParque]);
+
+  // Processa ajuste com IA / Regex
+  const handleCalcularAjustesIa = async () => {
+    if (!textoAjusteWhats.trim()) return;
+    setProcessandoIa(true);
+    try {
+      const parsed = await parseWhatsAppAdjustmentWithGemini(textoAjusteWhats, itens, modoAjuste);
+      const resultado: {
+        itemId: string;
+        nomeProduto: string;
+        qtdAtual: number;
+        delta: number;
+        novaQtd: number;
+        termo: string;
+      }[] = [];
+
+      for (const itemAj of parsed) {
+        const it = itens.find((i) => i.id === itemAj.itemId);
+        if (it) {
+          let delta = 0;
+          let novaQtd = it.quantidade;
+          const acao = itemAj.acaoSugerida || modoAjuste;
+
+          if (acao === 'diminuir') {
+            delta = -itemAj.quantidade;
+            novaQtd = Math.max(0, Number((it.quantidade - itemAj.quantidade).toFixed(2)));
+          } else if (acao === 'aumentar') {
+            delta = itemAj.quantidade;
+            novaQtd = Number((it.quantidade + itemAj.quantidade).toFixed(2));
+          } else {
+            delta = Number((itemAj.quantidade - it.quantidade).toFixed(2));
+            novaQtd = itemAj.quantidade;
+          }
+
+          resultado.push({
+            itemId: it.id,
+            nomeProduto: it.nomeProduto,
+            qtdAtual: it.quantidade,
+            delta,
+            novaQtd,
+            termo: itemAj.termo,
+          });
+        }
+      }
+      setAjustesSugeridos(resultado);
+    } catch (err) {
+      console.warn('Erro ao processar ajuste com IA:', err);
+    } finally {
+      setProcessandoIa(false);
+    }
+  };
+
+  const handleAplicarAjustesAoPedido = () => {
+    if (!ajustesSugeridos || ajustesSugeridos.length === 0) return;
+    setItens((prev) =>
+      prev.map((it) => {
+        const aj = ajustesSugeridos.find((a) => a.itemId === it.id);
+        if (aj) {
+          return {
+            ...it,
+            quantidade: aj.novaQtd,
+            subtotal: Number((aj.novaQtd * it.precoUnitario).toFixed(2)),
+          };
+        }
+        return it;
+      })
+    );
+    setAjustesSugeridos(null);
+    setTextoAjusteWhats('');
+  };
 
   if (!isOpen || !pedido) return null;
 
@@ -223,10 +330,168 @@ export function QuickOrderEditorModal({
         </div>
 
         {/* Aviso de facilidade para casas de eventos */}
-        <div className="bg-[#E8DFD3] px-4 py-2 text-xs text-[#4A3026] flex items-center gap-2 font-medium border-b border-[#D8CABE]">
-          <AlertCircle className="w-4 h-4 text-[#C68A4C] shrink-0" />
-          <span>Altere as quantidades facilmente com os botões grandes de <strong>+</strong> e <strong>-</strong></span>
+        <div className="bg-[#E8DFD3] px-4 py-2 text-xs text-[#4A3026] flex items-center justify-between font-medium border-b border-[#D8CABE]">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-[#C68A4C] shrink-0" />
+            <span>Altere as quantidades facilmente com os botões grandes de <strong>+</strong> e <strong>-</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMostrarIaAjuste(!mostrarIaAjuste)}
+            className="text-xs font-bold text-[#6E473B] hover:text-[#57372D] flex items-center gap-1 bg-white/60 px-2 py-0.5 rounded-md hover:bg-white transition-all shadow-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Ajuste via WhatsApp</span>
+            {mostrarIaAjuste ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
         </div>
+
+        {/* PAINEL DE AJUSTE AUTOMÁTICO COM IA VIA WHATSAPP (ESPECIAL TOCA DO URSO) */}
+        {mostrarIaAjuste && (
+          <div className="bg-amber-50/80 border-b-2 border-amber-300/80 p-3.5 text-xs text-[#2C2420] transition-all">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5 font-bold text-[#6E473B]">
+                <Wand2 className="w-4 h-4 text-amber-600" />
+                <span>Ajuste Rápido de Quantidades via WhatsApp</span>
+                {isParque && (
+                  <span className="text-[10px] bg-amber-200 text-amber-900 font-extrabold px-1.5 py-0.5 rounded">
+                    Toca do Urso
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-[11px] text-neutral-600 mb-2">
+              Escolha a operação e cole a mensagem recebida no WhatsApp (ex: sobra da festa anterior):
+            </p>
+
+            {/* SELETOR DE OPERAÇÃO: DIMINUIR / AUMENTAR / DEFINIR */}
+            <div className="flex gap-1.5 mb-2.5">
+              <button
+                type="button"
+                onClick={() => setModoAjuste('diminuir')}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1 transition-all border ${
+                  modoAjuste === 'diminuir'
+                    ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                    : 'bg-white text-neutral-700 border-neutral-300 hover:bg-rose-50'
+                }`}
+              >
+                <span>🔻 Diminuir</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoAjuste('aumentar')}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1 transition-all border ${
+                  modoAjuste === 'aumentar'
+                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                    : 'bg-white text-neutral-700 border-neutral-300 hover:bg-emerald-50'
+                }`}
+              >
+                <span>🔺 Aumentar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoAjuste('definir')}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1 transition-all border ${
+                  modoAjuste === 'definir'
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                    : 'bg-white text-neutral-700 border-neutral-300 hover:bg-blue-50'
+                }`}
+              >
+                <span>🎯 Definir Total</span>
+              </button>
+            </div>
+
+            {/* TEXTAREA PARA COLAR O WHATSAPP */}
+            <div className="relative mb-2.5">
+              <textarea
+                rows={3}
+                value={textoAjusteWhats}
+                onChange={(e) => setTextoAjusteWhats(e.target.value)}
+                placeholder="Cole o texto aqui, ex:&#10;Brigadeiro 63&#10;Colorido 43&#10;Caju 24&#10;Napolitano 29&#10;Casadinho 47&#10;Beijinho 42"
+                className="w-full bg-white border border-amber-300 rounded-xl p-2.5 text-xs text-[#2C2420] focus:ring-2 focus:ring-amber-500 focus:outline-hidden font-mono"
+              />
+            </div>
+
+            {/* BOTÃO CALCULAR COM IA */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={!textoAjusteWhats.trim() || processandoIa}
+                onClick={handleCalcularAjustesIa}
+                className="flex-1 py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95"
+              >
+                {processandoIa ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Processando Mensagem...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Processar Ajuste com IA</span>
+                  </>
+                )}
+              </button>
+              {ajustesSugeridos && (
+                <button
+                  type="button"
+                  onClick={() => setAjustesSugeridos(null)}
+                  className="py-2 px-3 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-600 font-bold text-xs"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+
+            {/* PRÉ-VISUALIZAÇÃO DOS AJUSTES CALCULADOS */}
+            {ajustesSugeridos && ajustesSugeridos.length > 0 && (
+              <div className="mt-3 bg-white p-3 rounded-xl border border-amber-300 shadow-xs">
+                <div className="font-bold text-[#6E473B] text-xs mb-2 flex items-center justify-between">
+                  <span>Pré-visualização das Alterações:</span>
+                  <span className="text-[11px] font-normal text-neutral-500">
+                    {ajustesSugeridos.length} ite{ajustesSugeridos.length > 1 ? 'ns' : 'm'}
+                  </span>
+                </div>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {ajustesSugeridos.map((aj, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between bg-neutral-50 p-1.5 rounded-lg border border-neutral-200 text-xs"
+                    >
+                      <span className="font-semibold text-neutral-800 line-clamp-1 flex-1">
+                        {aj.nomeProduto}
+                      </span>
+                      <div className="flex items-center gap-1 font-mono text-[11px] shrink-0">
+                        <span className="text-neutral-500">{aj.qtdAtual}</span>
+                        <span
+                          className={`font-bold ${
+                            aj.delta < 0 ? 'text-rose-600' : aj.delta > 0 ? 'text-emerald-600' : 'text-neutral-600'
+                          }`}
+                        >
+                          {aj.delta > 0 ? `+${aj.delta}` : aj.delta}
+                        </span>
+                        <ArrowRight className="w-3 h-3 text-neutral-400" />
+                        <span className="font-extrabold text-neutral-900 bg-amber-100 px-1 rounded">
+                          {aj.novaQtd} un
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAplicarAjustesAoPedido}
+                  className="mt-2.5 w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>Aplicar Ajustes ao Pedido</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Lista de Itens com BOTÕES GRANDES PARA O CELULAR */}
         <div className="p-4 overflow-y-auto space-y-3.5 flex-1">

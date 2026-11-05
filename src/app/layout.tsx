@@ -29,12 +29,14 @@ export const metadata: Metadata = {
     apple: [
       { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
     ],
+    shortcut: "/icon-192.png",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Sabores da Casa",
   },
+  applicationName: "Sabores da Casa",
 };
 
 export default function RootLayout({
